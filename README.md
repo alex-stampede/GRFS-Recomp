@@ -76,7 +76,7 @@ Intel Macs, Windows, Linux, other disc revisions, and online multiplayer are **n
 | Audio and controls | Reported working during playtesting |
 | Graphics | Playable; cinematic flicker and scene-reload corruption remain |
 | Shader storage | Persistent; first-use and some startup compilation can still occur |
-| Updates | Published-download verification and replacement/backup tests passed |
+| Updates | v0.10.0.1 → v0.10.0.2 upgrade and backup tested on the development Mac |
 | Broader compatibility | Testing on other Macs is still needed |
 
 The current renderer uses the **FBO** path and a **mip0 workaround** from the playable baseline. This improves the observed texture seams but is not a complete mipmap fix. No fixed frame-rate guarantee is made.
@@ -87,7 +87,7 @@ When the launcher opens, it checks the latest public Release. If a newer build i
 
 Before replacement, it validates the signed manifest, downloaded ZIP checksum, app identity, build number, and code signature. A separate helper replaces the app, keeps a previous copy, and opens the new version. If the app folder is not writable, the downloaded update is offered for manual installation.
 
-**Your extracted game, saves, and shader storage stay outside the app.** If GitHub is unavailable, the launcher continues normally. Earlier prototypes need one manual app replacement to gain the updater. The first upgrade between two public Releases still needs validation.
+**Your extracted game, saves, and shader storage stay outside the app.** If GitHub is unavailable, the launcher continues normally. Earlier prototypes need one manual app replacement to gain the updater. The upgrade from v0.10.0.1 to v0.10.0.2 has been exercised on the development Mac, including replacement, previous-version backup, and game relaunch.
 
 ## Saves, shaders, and logs
 
@@ -124,7 +124,7 @@ Install the Xcode command-line tools and supply a compatible, already compiled A
 
 Set `GRFS_RUNTIME_DIR` to that directory and run `python3 launcher/build.py`. You may set `GRFS_ICON_FILE` to a local `.icns`. The packaging script builds the launcher and helper; it does **not** regenerate or rebuild the game from an ISO. Download a Release if you only want to play.
 
-The Release also includes `ReXGlue-SDK-source.tar.gz`, a snapshot of the SDK sources and dependencies used in development. It does not contain the game code generated from the ISO. A full reproducible game-build workflow is still in development.
+[Release v0.10.0.1](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v0.10.0.1) also includes `ReXGlue-SDK-source.tar.gz`, a snapshot of the SDK sources and dependencies used in development. Later releases may link to that archive when those sources are unchanged. It does not contain the game code generated from the ISO. A full reproducible game-build workflow is still in development.
 
 ### Repository layout
 

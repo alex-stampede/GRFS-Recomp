@@ -22,3 +22,9 @@ Compile `UpdateHelper.swift` with AppKit to `/private/tmp/grfs-update-helper`, t
 Tests cover extraction, malformed images, signature validation, tampering, incorrect keys, allowed download origin, build comparisons, app replacement, previous-version backup, and preservation of external save data. The published Release's lookup, manifest verification, download checksum, app identity/build, and code signature have also been exercised through the updater against GitHub.
 
 The private signing key is not included. A build signed with another key will be rejected by apps that pin this project's current public key.
+
+## Application identity
+
+The packaged game lives in `Contents/Resources/Game.app`, with bundle identifier `local.grfs.game`. Its executable and runtime libraries remain together in `Game.app/Contents/MacOS`, preserving executable-relative library loading. Both the launcher and nested game bundle use the same `GRFS.icns`.
+
+`test_package.py` checks both bundle identities, matching icons, Foundation main-bundle resolution, code signatures, and unchanged runtime code sections. Set `GRFS_RUNTIME_DIR` to the tested baseline before running it. The actual public upgrade from v0.10.0.1 to v0.10.0.2 was also applied through the installed launcher and relaunched the game on the development Mac.
