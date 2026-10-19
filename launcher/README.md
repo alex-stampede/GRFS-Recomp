@@ -1,20 +1,24 @@
-# Launcher
+# Launcher development
 
-Código AppKit del instalador XDVDFS y del actualizador firmado. Consulta el README de la raíz para instalación, requisitos y limitaciones, y RELEASING.md para publicar versiones.
+Native AppKit XDVDFS installer and signed updater. See the root [README](../README.md) for player instructions and [RELEASING.md](../RELEASING.md) for release maintenance.
 
-- main.swift: entrada de la app y utilidades CLI de inspección/extracción.
-- Launcher.swift: selección de ISO, validación, progreso, arranque y datos persistentes.
-- Updater.swift: consulta de GitHub, consentimiento, firma Ed25519 y descarga verificada.
-- UpdateHelper.swift: reemplazo con copia anterior y reapertura.
-- GameTitle.m: adaptación exclusiva del título de la ventana; mantiene intacto el runtime validado.
-- compatible-game.json: hashes de ejecutables compatibles, sin contenido del juego.
-- required-files.json: inventario de nombres y tamaños esperados.
-- build.py: empaquetado, firmas ad hoc, ZIP, checksum y manifiesto por firmar.
+| File | Responsibility |
+| :--- | :--- |
+| `main.swift` | App entry point and ISO inspection/extraction CLI |
+| `Launcher.swift` | ISO selection, validation, progress, game launch, persistent data |
+| `Updater.swift` | GitHub Release lookup, user consent, Ed25519 verification, staged download |
+| `UpdateHelper.swift` | App replacement, previous-version backup, and relaunch |
+| `GameTitle.m` | Window-title adapter that leaves the validated runtime unchanged |
+| `compatible-game.json` | Compatible executable hashes; no executable content |
+| `required-files.json` | Expected file names and sizes |
+| `build.py` | Packaging, ad-hoc signing, ZIP, checksum, and unsigned update payload |
 
-## Pruebas
+## Verification
 
-Compila main.swift, Launcher.swift y Updater.swift con AppKit y CryptoKit a `/private/tmp/grfs-launcher-build`; ejecuta `python3 launcher/test_iso.py`.
+Compile `main.swift`, `Launcher.swift`, and `Updater.swift` with AppKit and CryptoKit to `/private/tmp/grfs-launcher-build`, then run `python3 launcher/test_iso.py`.
 
-Compila UpdateHelper.swift con AppKit a `/private/tmp/grfs-update-helper`; ejecuta `python3 launcher/test_updates.py`. Las pruebas verifican extracción, rechazo de ISO inválida, firma válida, manipulación, clave incorrecta, origen de descarga, comparación de builds, reemplazo, copia anterior y conservación de datos externos.
+Compile `UpdateHelper.swift` with AppKit to `/private/tmp/grfs-update-helper`, then run `python3 launcher/test_updates.py`.
 
-No se incluye la clave privada de firma. No uses la clave pública del proyecto para publicar builds firmadas con otra clave: las apps instaladas rechazarían la actualización.
+Tests cover extraction, malformed images, signature validation, tampering, incorrect keys, allowed download origin, build comparisons, app replacement, previous-version backup, and preservation of external save data. The published Release's lookup, manifest verification, download checksum, app identity/build, and code signature have also been exercised through the updater against GitHub.
+
+The private signing key is not included. A build signed with another key will be rejected by apps that pin this project's current public key.
