@@ -31,15 +31,15 @@ final class ISO {
                 partition = offset; descriptor = d; break
             }
         }
-        guard let d = descriptor else { throw Failure("No se encontró una partición Xbox compatible en esta ISO.") }
+        guard let d = descriptor else { throw Failure("No compatible Xbox partition was found in this ISO.") }
         try directory(sector: u32(d, 20), length: u32(d, 24), prefix: "", depth: 0)
-        guard !files.isEmpty else { throw Failure("La ISO no contiene archivos.") }
+        guard !files.isEmpty else { throw Failure("The ISO contains no files.") }
     }
     deinit { try? handle.close() }
     func read(_ offset: UInt64, _ count: Int) throws -> Data {
-        guard count >= 0, offset <= size, UInt64(count) <= size - offset else { throw Failure("La ISO contiene un archivo fuera de sus límites.") }
+        guard count >= 0, offset <= size, UInt64(count) <= size - offset else { throw Failure("A file extends beyond the bounds of the ISO.") }
         try handle.seek(toOffset: offset)
-        guard let d = try handle.read(upToCount: count), d.count == count else { throw Failure("Lectura incompleta de la ISO.") }
+        guard let d = try handle.read(upToCount: count), d.count == count else { throw Failure("The ISO could not be read completely.") }
         return d
     }
     func u16(_ d: Data, _ p: Int) -> UInt32 { UInt32(d[p]) | UInt32(d[p+1]) << 8 }
@@ -47,25 +47,25 @@ final class ISO {
     func directory(sector: UInt32, length: UInt32, prefix: String, depth: Int) throws {
         if length == 0 { return }
         let offset = partition + UInt64(sector) * 2048
-        guard depth <= 32, length <= 64 * 1024 * 1024, directoryIDs.insert(offset).inserted else { throw Failure("Directorio inválido o circular en la ISO.") }
+        guard depth <= 32, length <= 64 * 1024 * 1024, directoryIDs.insert(offset).inserted else { throw Failure("Invalid or circular directory in the ISO.") }
         let d = try read(offset, Int(length))
         var stack = [0], visited = Set<Int>()
         while let p = stack.popLast() {
-            guard p >= 0, p + 14 <= d.count, visited.insert(p).inserted else { throw Failure("Tabla de directorios inválida.") }
+            guard p >= 0, p + 14 <= d.count, visited.insert(p).inserted else { throw Failure("Invalid ISO directory table.") }
             let left = u16(d,p), right = u16(d,p+2)
             if left == 0xFFFF { continue }
             let count = Int(d[p+13])
             guard count > 0, p + 14 + count <= d.count,
                   let name = String(data: d[(p+14)..<(p+14+count)], encoding: .utf8),
-                  name != ".", name != "..", !name.contains("/"), !name.contains("\\"), !name.contains(":"), !name.contains("\0") else { throw Failure("Nombre de archivo inválido en la ISO.") }
+                  name != ".", name != "..", !name.contains("/"), !name.contains("\\"), !name.contains(":"), !name.contains("\0") else { throw Failure("Invalid file name in the ISO.") }
             let path = prefix + name
-            guard names.insert(path.lowercased()).inserted, names.count <= 200000 else { throw Failure("Archivos duplicados o demasiados archivos en la ISO.") }
+            guard names.insert(path.lowercased()).inserted, names.count <= 200000 else { throw Failure("Duplicate files or too many entries in the ISO.") }
             let start = u32(d,p+4), size = u32(d,p+8)
             if d[p+12] & 0x10 != 0 {
                 try directory(sector: start, length: size, prefix: path + "/", depth: depth+1)
             } else {
                 let location = partition + UInt64(start) * 2048
-                guard location <= self.size, UInt64(size) <= self.size - location else { throw Failure("Archivo truncado en la ISO: \(path)") }
+                guard location <= self.size, UInt64(size) <= self.size - location else { throw Failure("Truncated file in the ISO: \(path)") }
                 files.append(Entry(path: path, offset: location, size: UInt64(size)))
             }
             if right != 0 { stack.append(Int(right)*4) }
@@ -76,7 +76,7 @@ final class ISO {
         for (name, value) in expected {
             guard let e = files.first(where: { $0.path.lowercased() == name }), e.size == value.size,
                   digest(try read(e.offset, Int(e.size))) == value.sha256 else {
-                throw Failure("Esta edición no coincide con la build compatible (\(name)). Usa la ISO de la misma versión de GRFS.")
+                throw Failure("This edition does not match the compatible build (\(name)). Use the supported edition of GRFS.")
             }
         }
     }
@@ -87,7 +87,7 @@ final class ISO {
         for e in files {
             let output = destination.appendingPathComponent(e.path)
             try fm.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
-            guard fm.createFile(atPath: output.path, contents: nil) else { throw Failure("No se pudo crear \(e.path).") }
+            guard fm.createFile(atPath: output.path, contents: nil) else { throw Failure("Could not create \(e.path).") }
             let writer = try FileHandle(forWritingTo: output)
             do {
                 var copied: UInt64 = 0
@@ -110,45 +110,34 @@ final class Launcher: NSObject, NSApplicationDelegate {
     var expected: [String: Expected] = [:]
     var required: [String: UInt64] = [:]
     var window: NSWindow!
-    let status = NSTextField(wrappingLabelWithString: "Selecciona tu ISO para instalar el juego en este Mac.")
+    let status = NSTextField(wrappingLabelWithString: "Choose your ISO to install the game on this Mac.")
     let percent = NSTextField(labelWithString: "0%")
-    let bar = NSProgressIndicator()
-    let button = NSButton(title: "Seleccionar ISO…", target: nil, action: nil)
+    let bar = GRFSProgressIndicator()
+    let button = GRFSActionButton(title: "Choose ISO…", target: nil, action: nil)
     var busy = false
     var child: Process?
     var launched = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            guard let manifest = Bundle.main.url(forResource: "compatible-game", withExtension: "json") else { throw Failure("Falta el manifiesto de compatibilidad.") }
+            guard let manifest = Bundle.main.url(forResource: "compatible-game", withExtension: "json") else { throw Failure("The compatibility manifest is missing.") }
             expected = try JSONDecoder().decode([String:Expected].self, from: Data(contentsOf: manifest))
             required = try JSONDecoder().decode([String:UInt64].self, from: Data(contentsOf: Bundle.main.url(forResource:"required-files",withExtension:"json")!))
             try fm.createDirectory(at: home, withIntermediateDirectories: true)
         } catch { alert(error); return }
-        window = NSWindow(contentRect: NSRect(x:0,y:0,width:580,height:300), styleMask:[.titled,.closable,.miniaturizable], backing:.buffered, defer:false)
-        window.title = "Ghost Recon Future Soldier"
-        window.center(); window.isReleasedWhenClosed = false
-        let title = NSTextField(labelWithString: "GHOST RECON · FUTURE SOLDIER")
-        title.font = .boldSystemFont(ofSize:20)
-        let note = NSTextField(wrappingLabelWithString: "Instalación local · Partidas y caché se conservan al actualizar la app")
-        note.textColor = .secondaryLabelColor
-        bar.isIndeterminate = false; bar.minValue = 0; bar.maxValue = 100
-        button.target = self; button.action = #selector(selectISO)
-        let stack = NSStackView(views:[title,note,status,bar,percent,button])
-        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        window.contentView!.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:window.contentView!.leadingAnchor,constant:28),stack.trailingAnchor.constraint(equalTo:window.contentView!.trailingAnchor,constant:-28),stack.topAnchor.constraint(equalTo:window.contentView!.topAnchor,constant:28),bar.widthAnchor.constraint(equalTo:stack.widthAnchor)])
-        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true)
+        do { try migrateLegacyBackups(home:home) }
+        catch { NSLog("Legacy backup cleanup deferred: %@",error.localizedDescription) }
+        buildWindow()
+        if CommandLine.arguments.contains("--preview-launcher") || Bundle.main.object(forInfoDictionaryKey:"GRFSPreview") as? Bool == true { return }
         checkUpdates { self.continueStartup() }
     }
     func continueStartup() {
-        status.stringValue = "Selecciona tu ISO para instalar el juego en este Mac."
+        status.stringValue = "Choose your ISO to install the game on this Mac."
         if fm.fileExists(atPath: state.path) {
             busy = true; button.isEnabled = false
-            status.stringValue = "Verificando instalación…"
+            status.stringValue = "Verifying installation…"
             DispatchQueue.global().async {
                 do { try self.validateInstalled(); DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.startGame() } }
-                catch { DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.status.stringValue = "La instalación necesita reparación. Tus partidas están conservadas."; self.button.title = "Reinstalar desde ISO…"; self.alert(error) } }
+                catch { DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.status.stringValue = "The installation needs repair. Your saves are preserved."; self.button.title = "Reinstall from ISO…"; self.alert(error) } }
             }
         }
     }
@@ -156,22 +145,22 @@ final class Launcher: NSObject, NSApplicationDelegate {
         let a = NSAlert(); a.messageText = "GRFS Recompiled"; a.informativeText = error.localizedDescription; a.runModal()
     }
     func update(_ value: Double, _ text: String) {
-        DispatchQueue.main.async { self.bar.doubleValue = value; self.percent.stringValue = "\(Int(value))%"; self.status.stringValue = text }
+        DispatchQueue.main.async { self.bar.doubleValue = value; self.bar.needsDisplay = true; self.percent.stringValue = "\(Int(value))%"; self.status.stringValue = text }
     }
     func validateInstalled(at directory: URL? = nil) throws {
         let location = directory ?? game
         let children = try fm.contentsOfDirectory(at: location, includingPropertiesForKeys:nil)
-        guard let enumeration = fm.enumerator(at:location,includingPropertiesForKeys:[.fileSizeKey,.isRegularFileKey]) else { throw Failure("No se puede leer la instalación.") }
+        guard let enumeration = fm.enumerator(at:location,includingPropertiesForKeys:[.fileSizeKey,.isRegularFileKey]) else { throw Failure("Could not read the installation.") }
         var inventory: [String:UInt64] = [:]
         for case let file as URL in enumeration {
             let values = try file.resourceValues(forKeys:[.fileSizeKey,.isRegularFileKey])
             if values.isRegularFile == true { inventory[String(file.path.dropFirst(location.path.count+1)).lowercased()] = UInt64(values.fileSize ?? 0) }
         }
-        for (path,size) in required { guard inventory[path] == size else { throw Failure("Archivo ausente o incompleto: \(path)") } }
+        for (path,size) in required { guard inventory[path] == size else { throw Failure("Missing or incomplete file: \(path)") } }
         for (name,value) in expected {
             guard let file = children.first(where: { $0.lastPathComponent.lowercased() == name }),
                   let size = try file.resourceValues(forKeys:[.fileSizeKey]).fileSize, UInt64(size) == value.size,
-                  digest(try Data(contentsOf:file)) == value.sha256 else { throw Failure("Falta un ejecutable compatible: \(name).") }
+                  digest(try Data(contentsOf:file)) == value.sha256 else { throw Failure("A compatible executable is missing: \(name).") }
         }
     }
     @objc func selectISO() {
@@ -179,32 +168,33 @@ final class Launcher: NSObject, NSApplicationDelegate {
         if launched { startGame(); return }
         guard !busy else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+        panel.title = "Install Ghost Recon Future Soldier"; panel.prompt = "Choose ISO"; panel.message = "Select your compatible Xbox 360 disc image. Files are installed locally."
         panel.allowedContentTypes = [UTType(filenameExtension:"iso") ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         busy = true; button.isEnabled = false
         DispatchQueue.global(qos:.userInitiated).async {
             let stage = self.home.appendingPathComponent("install-" + UUID().uuidString)
             do {
-                self.update(1,"Leyendo estructura de la ISO…")
+                self.update(1,"Reading ISO structure…")
                 let iso = try ISO(url)
-                self.update(4,"Comprobando versión y ejecutables…")
+                self.update(4,"Checking game version and executables…")
                 try iso.validate(self.expected)
                 let inventory = Dictionary(uniqueKeysWithValues: iso.files.map { ($0.path.lowercased(), $0.size) })
                 for (path, size) in self.required {
-                    guard inventory[path] == size else { throw Failure("Falta un archivo compatible en la ISO: \(path)") }
+                    guard inventory[path] == size else { throw Failure("A compatible file is missing from the ISO: \(path)") }
                 }
                 let bytes = iso.files.reduce(UInt64(0)) { $0 + $1.size }
                 let free = try self.home.resourceValues(forKeys:[.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage ?? 0
-                guard free > 0, UInt64(free) > bytes + 512*1024*1024 else { throw Failure("No hay suficiente espacio libre para instalar el juego.") }
+                guard free > 0, UInt64(free) > bytes + 512*1024*1024 else { throw Failure("There is not enough free space to install the game.") }
                 var lastUpdate = Date.distantPast
                 try iso.extract(to:stage) { fraction,path in
                     if Date().timeIntervalSince(lastUpdate) > 0.1 || fraction == 1 {
-                        lastUpdate = Date(); self.update(5+fraction*90,"Extrayendo: \(path)")
+                        lastUpdate = Date(); self.update(5+fraction*90,"Extracting: \(path)")
                     }
                 }
-                self.update(96,"Verificando archivos instalados…")
+                self.update(96,"Verifying installed files…")
                 try self.validateInstalled(at:stage)
-                self.update(98,"Preparando instalación y caché persistente…")
+                self.update(98,"Preparing installation and persistent shader storage…")
                 if fm.fileExists(atPath:self.game.path) {
                     let backup = self.home.appendingPathComponent("Game-backup-"+UUID().uuidString)
                     try fm.moveItem(at:self.game,to:backup)
@@ -213,11 +203,11 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 } else { try fm.moveItem(at:stage,to:self.game) }
                 let info: [String:Any] = ["schema":1,"installedAt":ISO8601DateFormatter().string(from:Date()),"version":"GRFS-55530833-2DF41A75","files":iso.files.count]
                 try JSONSerialization.data(withJSONObject:info,options:.prettyPrinted).write(to:self.state,options:.atomic)
-                self.update(100,"Instalación completa. Iniciando el juego…")
+                self.update(100,"Installation complete. Starting the game…")
                 DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.startGame() }
             } catch {
                 try? fm.removeItem(at:stage)
-                DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.status.stringValue = "Instalación no completada."; self.alert(error) }
+                DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.status.stringValue = "Installation was not completed."; self.alert(error) }
             }
         }
     }
@@ -233,26 +223,27 @@ final class Launcher: NSObject, NSApplicationDelegate {
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
             env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.0"
             env["DYLD_INSERT_LIBRARIES"] = runtime.appendingPathComponent("libGRFSWindowTitle.dylib").path
+            if Bundle.main.object(forInfoDictionaryKey:"GRFSFullscreenTrace") as? Bool == true { env["GRFS_FULLSCREEN_TRACE"] = "1" }
             p.environment = env
             let output = logs.appendingPathComponent("console.log"); fm.createFile(atPath:output.path,contents:nil)
             let file = try FileHandle(forWritingTo:output); p.standardOutput = file; p.standardError = file
             p.terminationHandler = { process in
                 try? file.close()
                 DispatchQueue.main.async {
-                    self.child = nil; self.status.stringValue = process.terminationStatus == 0 ? "Juego cerrado. Partidas y caché conservadas." : "El juego terminó con código \(process.terminationStatus). Consulta Logs."
-                    self.button.title = "Abrir juego"; self.button.isEnabled = true
+                    self.child = nil; self.status.stringValue = process.terminationStatus == 0 ? "Game closed. Saves and shader storage preserved." : "The game exited with code \(process.terminationStatus). Check the Logs folder."
+                    self.button.title = "Play game"; self.button.isEnabled = true
                     if process.terminationStatus == 0 { NSApp.terminate(nil) }
                     else { NSApp.setActivationPolicy(.regular); self.window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }
                 }
             }
-            status.stringValue = "Iniciando y precargando shaders conocidos. Las escenas nuevas pueden necesitar compilar shaders."
+            status.stringValue = "Starting game and loading known shaders…"
             try p.run(); child = p; launched = true; button.isEnabled = false
             window.orderOut(nil); NSApp.setActivationPolicy(.accessory)
         } catch { alert(error) }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if busy || child != nil {
-            let a = NSAlert(); a.messageText = busy ? "La instalación está en curso." : "Cierra el juego antes de salir del launcher."; a.runModal(); return .terminateCancel
+            let a = NSAlert(); a.messageText = busy ? "Installation is in progress." : "Close the game before quitting the launcher."; a.runModal(); return .terminateCancel
         }
         return .terminateNow
     }

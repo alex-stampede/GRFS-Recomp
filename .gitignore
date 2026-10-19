@@ -19,3 +19,6 @@ Game/
 *.o
 *.a
 *.app/
+
+diagnostics/
+launcher/preview/

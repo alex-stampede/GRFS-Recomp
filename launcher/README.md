@@ -8,6 +8,8 @@ Native AppKit XDVDFS installer and signed updater. See the root [README](../READ
 | `Launcher.swift` | ISO selection, validation, progress, game launch, persistent data |
 | `Updater.swift` | GitHub Release lookup, user consent, Ed25519 verification, staged download |
 | `UpdateHelper.swift` | App replacement, previous-version backup, and relaunch |
+| `LauncherTheme.swift` | GRFS artwork, dark AppKit theme, progress and action button |
+| `Resources/Background.jpg` | User-provided launcher background; game artwork retains its owners' rights |
 | `GameTitle.m` | Window-title adapter that leaves the validated runtime unchanged |
 | `compatible-game.json` | Compatible executable hashes; no executable content |
 | `required-files.json` | Expected file names and sizes |
@@ -15,7 +17,7 @@ Native AppKit XDVDFS installer and signed updater. See the root [README](../READ
 
 ## Verification
 
-Compile `main.swift`, `Launcher.swift`, and `Updater.swift` with AppKit and CryptoKit to `/private/tmp/grfs-launcher-build`, then run `python3 launcher/test_iso.py`.
+Compile `main.swift`, `Launcher.swift`, `Updater.swift`, `LauncherTheme.swift`, and `LegacyBackups.swift` with AppKit and CryptoKit to `/private/tmp/grfs-launcher-build`, then run `python3 launcher/test_iso.py`.
 
 Compile `UpdateHelper.swift` with AppKit to `/private/tmp/grfs-update-helper`, then run `python3 launcher/test_updates.py`.
 
@@ -28,3 +30,9 @@ The private signing key is not included. A build signed with another key will be
 The packaged game lives in `Contents/Resources/Game.app`, with bundle identifier `local.grfs.game`. Its executable and runtime libraries remain together in `Game.app/Contents/MacOS`, preserving executable-relative library loading. Both the launcher and nested game bundle use the same `GRFS.icns`.
 
 `test_package.py` checks both bundle identities, matching icons, Foundation main-bundle resolution, code signatures, and unchanged runtime code sections. Set `GRFS_RUNTIME_DIR` to the tested baseline before running it. The actual public upgrade from v0.10.0.1 to v0.10.0.2 was also applied through the installed launcher and relaunched the game on the development Mac.
+
+## Fullscreen patch
+
+`../patches/macos-metal-swapchain.patch` changes only macOS swapchain replacement ordering in the SDK presenter: destroy the previous swapchain before constructing its replacement, avoiding MoltenVK resetting the replacement’s CAMetalLayer to 1×1 while completing older presents. The compiled runtime must include this patch. The owner confirmed visible fullscreen and windowed output in the instrumented test.
+
+The package test also checks that the bundled Vulkan ICD manifest exists and resolves to the bundled MoltenVK library.

@@ -7,7 +7,14 @@ game=app/'Contents/Resources/Game.app'
 load=lambda p:plistlib.loads(p.read_bytes())
 outer=load(app/'Contents/Info.plist');inner=load(game/'Contents/Info.plist')
 assert outer['CFBundleIdentifier']=='local.grfs.launcher'
+assert outer['CFBundleDevelopmentRegion']=='en'
+assert (app/'Contents/Resources/Background.jpg').read_bytes()[:2]==b'\xff\xd8'
 assert inner['CFBundleIdentifier']=='local.grfs.game'
+icd=game/'Contents/MacOS/vulkan/share/vulkan/icd.d/MoltenVK_icd.json'
+import json
+assert icd.exists(),'Missing packaged Vulkan driver manifest'
+driver=json.loads(icd.read_text())['ICD']['library_path']
+assert (icd.parent/driver).resolve().is_file(),'Packaged driver manifest points to a missing library'
 assert inner['CFBundleExecutable']=='grfs'
 assert inner['CFBundleName']=='Ghost Recon Future Soldier Recomp'
 assert outer['CFBundleVersion']==inner['CFBundleVersion']

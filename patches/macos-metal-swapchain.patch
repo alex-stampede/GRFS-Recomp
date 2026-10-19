@@ -1,0 +1,20 @@
+--- a/src/ui/vulkan/vulkan_presenter.cpp
++++ b/src/ui/vulkan/vulkan_presenter.cpp
+@@ -765,6 +765,17 @@
+   // GPU.
+   if (paint_context_.vulkan_surface != VK_NULL_HANDLE) {
+     VkSwapchainKHR old_swapchain = paint_context_.PrepareForSwapchainRetirement();
++#if REX_PLATFORM_MAC
++    // MoltenVK may force completion of the old swapchain's pending presents by
++    // setting the shared CAMetalLayer drawableSize to 1x1. If this happens while
++    // constructing its replacement, the new swapchain can be left drawing into
++    // that 1x1 layer. Retire the old swapchain first, then let the new one set
++    // the final drawable size. This affects surface recreation only.
++    if (old_swapchain != VK_NULL_HANDLE) {
++      dfn.vkDestroySwapchainKHR(device, old_swapchain, nullptr);
++      old_swapchain = VK_NULL_HANDLE;
++    }
++#endif
+     bool surface_unusable;
+     paint_context_.swapchain = PaintContext::CreateSwapchainForVulkanSurface(
+         vulkan_device_, paint_context_.vulkan_surface, new_surface_width, new_surface_height,

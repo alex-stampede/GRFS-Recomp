@@ -10,6 +10,6 @@
 
 Never publish `.release-secrets`, private keys, tokens, ISOs, original XEX files, saves, or extracted game data. Compiled archives belong in Releases, not source history.
 
-The replacement helper restores the old app if moving the staged replacement fails. If the new app launches but has a functional regression, close the game and recover the saved `GRFS Previous-….app` copy. The helper does not automatically detect gameplay regressions.
+The replacement helper restores the old app if moving the staged replacement fails. If the new app launches but has a functional regression, close the game and recover `~/Library/Application Support/GRFS Recompiled/Backups/Previous.app.backup` by copying it to Applications with an `.app` extension. Only one previous version is kept outside Applications; redundant legacy backup apps are moved to recoverable Trash. The helper does not automatically detect gameplay regressions.
 
 Documentation-only updates do not require rebuilding or resigning the current Release assets.

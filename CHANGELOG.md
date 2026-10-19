@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0.3 — October 19, 2026
+
+- Redesigned the launcher around the supplied GRFS background, dark colors, and teal accents.
+- Translated launcher messages, installer actions, and update dialogs to English.
+- Keep one rollback copy outside Applications and migrate legacy backup apps; redundant copies go to recoverable Trash.
+- Documented current keyboard mappings, the Mac mini M4 Pro 24 GB development system, and owner-reported successful testing on MacBook Air M3 8 GB.
+- Added a packaged Vulkan driver-manifest check and a macOS swapchain recreation fix. The owner confirmed working fullscreen entry and return to windowed mode on the development Mac.
+
 ## 0.10.0.2 — October 19, 2026
 
 ### Fixed

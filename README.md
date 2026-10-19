@@ -52,7 +52,7 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 4. Let the launcher verify and extract the files. The game starts when installation finishes.
 5. Next time, open the same app from Applications to launch the game directly.
 
-The redesigned v0.10.0.3 launcher uses **English**, including update buttons and progress messages. Published versions through v0.10.0.2 still use Spanish. Installation happens locally; your ISO is not uploaded. It checks the two game executable hashes and the expected file names and sizes. Other editions or revisions may be rejected; see the [compatibility manifest](launcher/compatible-game.json).
+The v0.10.0.3 launcher uses **English**, including update buttons and progress messages. Published versions through v0.10.0.2 still use Spanish. Installation happens locally; your ISO is not uploaded. It checks the two game executable hashes and the expected file names and sizes. Other editions or revisions may be rejected; see the [compatibility manifest](launcher/compatible-game.json).
 
 ### Requirements
 
@@ -99,6 +99,7 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 | Guerrilla | Playable on the development Mac |
 | Audio and controls | Reported working during playtesting |
 | Graphics | Playable; cinematic flicker and scene-reload corruption remain |
+| Native macOS fullscreen | Entry and return to windowed mode confirmed working with the v0.10.0.3 fix on the development Mac |
 | Shader storage | Persistent; first-use and some startup compilation can still occur |
 | Updates | v0.10.0.1 → v0.10.0.2 upgrade and backup tested on the development Mac |
 | Development machine | Mac mini M4 Pro · 24 GB memory |
