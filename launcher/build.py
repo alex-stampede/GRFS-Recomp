@@ -6,8 +6,9 @@ root=Path(__file__).resolve().parent
 project=root.parent
 app=root/'dist/GRFS Recompiled.app'
 if app.exists(): shutil.rmtree(app)
-mac=app/'Contents/MacOS'; resources=app/'Contents/Resources'; runtime=resources/'Runtime'
-mac.mkdir(parents=True); runtime.mkdir(parents=True)
+mac=app/'Contents/MacOS'; resources=app/'Contents/Resources'
+game_app=resources/'Game.app'; runtime=game_app/'Contents/MacOS'; game_resources=game_app/'Contents/Resources'
+mac.mkdir(parents=True); runtime.mkdir(parents=True); game_resources.mkdir(parents=True)
 base=Path(os.environ.get('GRFS_RUNTIME_DIR',root/'runtime'))
 version=json.loads((root/'version.json').read_text())
 if not (base/'grfs').exists(): raise SystemExit('Set GRFS_RUNTIME_DIR to a compatible compiled runtime directory (see README).')
@@ -19,7 +20,13 @@ subprocess.run(['clang','-dynamiclib','-fobjc-arc',str(root/'GameTitle.m'),'-fra
 subprocess.run(['swiftc',str(root/'UpdateHelper.swift'),'-o',str(resources/'ApplyUpdate'),'-framework','AppKit','-module-cache-path','/private/tmp/grfs-swift-cache'],check=True)
 for name in ['compatible-game.json','required-files.json','update-public-key.txt']: shutil.copy2(root/name,resources/name)
 icon=Path(os.environ.get('GRFS_ICON_FILE',root/'GRFS.icns'))
-if icon.exists(): shutil.copy2(icon,resources/'GRFS.icns')
+if icon.exists():
+    shutil.copy2(icon,resources/'GRFS.icns')
+    shutil.copy2(icon,game_resources/'GRFS.icns')
+else:
+    raise SystemExit('GRFS_ICON_FILE must point to a valid .icns so both apps have a Dock icon.')
+game_info=dict(CFBundleIdentifier='local.grfs.game',CFBundleName='Ghost Recon Future Soldier Recomp',CFBundleDisplayName='Ghost Recon Future Soldier Recomp',CFBundleExecutable='grfs',CFBundleIconFile='GRFS.icns',CFBundlePackageType='APPL',CFBundleShortVersionString=version['version'],CFBundleVersion=str(version['build']),LSMinimumSystemVersion=version['minimumSystem'],NSHighResolutionCapable=True,LSMultipleInstancesProhibited=True)
+with (game_app/'Contents/Info.plist').open('wb') as f: plistlib.dump(game_info,f)
 licenses=project/'THIRD_PARTY_LICENSES'
 if licenses.exists(): shutil.copytree(licenses,resources/'Licenses')
 info=dict(CFBundleIdentifier='local.grfs.launcher',CFBundleName='GRFS Recompiled',CFBundleDisplayName='Ghost Recon Future Soldier',CFBundleExecutable='GRFSLauncher',CFBundleIconFile='GRFS.icns',CFBundlePackageType='APPL',CFBundleShortVersionString=version['version'],CFBundleVersion=str(version['build']),LSMinimumSystemVersion=version['minimumSystem'],NSHighResolutionCapable=True)
@@ -32,6 +39,6 @@ archive.unlink(missing_ok=True)
 subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(app),str(archive)],check=True)
 digest=hashlib.sha256(archive.read_bytes()).hexdigest()
 (root/'dist/SHA256SUMS.txt').write_text(digest+'  '+archive.name+'\n')
-payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Instalación desde ISO, caché persistente y actualizaciones desde GitHub con confirmación y firma Ed25519. Se conservan las partidas y el juego instalado.')
+payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Fix the generic exec Dock icon: the game now runs inside its own macOS app bundle using the launcher icon. Existing game files, saves and shader storage are preserved.')
 (root/'dist/update-payload.json').write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
 print(app)

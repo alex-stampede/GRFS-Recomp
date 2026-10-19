@@ -224,7 +224,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
     func startGame() {
         guard child == nil else { return }
         do {
-            let runtime = Bundle.main.resourceURL!.appendingPathComponent("Runtime")
+            let runtime = Bundle.main.resourceURL!.appendingPathComponent("Game.app/Contents/MacOS")
             let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("Cache"), logs = home.appendingPathComponent("Logs")
             for path in [user,cache,logs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime

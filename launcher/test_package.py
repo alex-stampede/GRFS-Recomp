@@ -1,0 +1,33 @@
+"""Check packaged macOS identity, icons, linkage layout, and untouched game code."""
+from pathlib import Path
+import plistlib,hashlib,subprocess,os,tempfile,shutil
+root=Path(__file__).resolve().parent
+app=root/'dist/GRFS Recompiled.app'
+game=app/'Contents/Resources/Game.app'
+load=lambda p:plistlib.loads(p.read_bytes())
+outer=load(app/'Contents/Info.plist');inner=load(game/'Contents/Info.plist')
+assert outer['CFBundleIdentifier']=='local.grfs.launcher'
+assert inner['CFBundleIdentifier']=='local.grfs.game'
+assert inner['CFBundleExecutable']=='grfs'
+assert inner['CFBundleName']=='Ghost Recon Future Soldier Recomp'
+assert outer['CFBundleVersion']==inner['CFBundleVersion']
+for bundle in [app,game]:
+    icon=bundle/'Contents/Resources/GRFS.icns'
+    assert icon.exists() and icon.read_bytes()[:4]==b'icns'
+assert (app/'Contents/Resources/GRFS.icns').read_bytes()==(game/'Contents/Resources/GRFS.icns').read_bytes()
+base=Path(os.environ['GRFS_RUNTIME_DIR'])
+# The executable is ad-hoc re-signed during packaging; compare Mach-O code sections,
+# not embedded signatures, by checking the __TEXT section dump.
+for name in ['grfs','librexruntime.dylib','librexgpu-xenos.dylib','libgrfs_AICLASS_X360_F.dylib','libTracyClient.dylib']:
+    output=lambda p:subprocess.check_output(['otool','-t',str(p)]).split(b'\n',1)[1]
+    assert output(base/name)==output(game/'Contents/MacOS'/name),name
+subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
+# Exercise Foundation's real main-bundle resolution for the nested executable layout.
+with tempfile.TemporaryDirectory() as temporary:
+    temp=Path(temporary);probe=temp/'Game.app/Contents/MacOS/grfs'
+    probe.parent.mkdir(parents=True);shutil.copy2(game/'Contents/Info.plist',probe.parent.parent/'Info.plist')
+    source=temp/'probe.m'
+    source.write_text('#import <Foundation/Foundation.h>\nint main(){@autoreleasepool { return ![[NSBundle mainBundle].bundleIdentifier isEqualToString:@"local.grfs.game"]; }}\n')
+    subprocess.run(['clang',str(source),'-framework','Foundation','-o',str(probe)],check=True)
+    subprocess.run([str(probe)],check=True)
+print('PASS: game app identity, matching Dock icons, nested bundle resolution, unchanged runtime code and signature')

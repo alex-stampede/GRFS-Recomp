@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0.2 — October 19, 2026
+
+### Fixed
+
+- Package the game process as a nested macOS application with its own bundle identity and the same icon as the launcher. This replaces the generic black `exec` Dock icon during gameplay.
+- Keep runtime libraries beside the game executable so the playable baseline and renderer settings remain unchanged.
+- Preserve the existing installation, save data, shader storage, and hidden installer behavior.
+
 ## 0.10.0.1 — October 19, 2026
 
 ### Added
