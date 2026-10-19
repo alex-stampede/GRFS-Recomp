@@ -1,0 +1,10 @@
+{
+  "default.xex": {
+    "sha256": "605c666b3286d909996652e4291daab51129238d6db698f86cbcefb4de37a34f",
+    "size": 6750208
+  },
+  "aiclass_x360_f.xex": {
+    "sha256": "92241e6d2b1e11f21b3f0476a56ddf3e2e2efd3c1c7a62212d4d6715c28221a3",
+    "size": 3297280
+  }
+}
