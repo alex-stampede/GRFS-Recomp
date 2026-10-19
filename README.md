@@ -52,7 +52,7 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 4. Let the launcher verify and extract the files. The game starts when installation finishes.
 5. Next time, open the same app from Applications to launch the game directly.
 
-The launcher currently displays its interface in **Spanish**. Installation happens locally; your ISO is not uploaded. It checks the two game executable hashes and the expected file names and sizes. Other editions or revisions may be rejected; see the [compatibility manifest](launcher/compatible-game.json).
+The redesigned v0.10.0.3 launcher uses **English**, including update buttons and progress messages. Published versions through v0.10.0.2 still use Spanish. Installation happens locally; your ISO is not uploaded. It checks the two game executable hashes and the expected file names and sizes. Other editions or revisions may be rejected; see the [compatibility manifest](launcher/compatible-game.json).
 
 ### Requirements
 
@@ -65,6 +65,30 @@ The launcher currently displays its interface in **Spanish**. Installation happe
 | Internet | Needed to download the app and check for updates; an existing installation can start without a successful update check |
 
 Intel Macs, Windows, Linux, other disc revisions, and online multiplayer are **not validated by this release**.
+
+## Keyboard controls
+
+The launcher enables keyboard-to-controller emulation. These are the current runtime defaults, not a remapped PC control scheme. In-game prompts still display Xbox buttons; actions depend on the current game context.
+
+| Keyboard input | Xbox input / common use |
+| :--- | :--- |
+| **W / A / S / D** | Left stick — movement and menu navigation |
+| **Arrow keys** | Right stick — camera / look |
+| **Space** or **;** | A — confirm / contextual action |
+| **Backspace** or **'** | B — back / contextual action |
+| **L** | X — reload / interact, depending on context |
+| **P** | Y — weapon switching / contextual action |
+| **Q** or **I** | Left trigger — aim |
+| **E** or **O** | Right trigger — fire |
+| **1** | Left bumper |
+| **3** | Right bumper |
+| **F** | Left stick click |
+| **K** | Right stick click |
+| **Shift + Arrow keys** | D-pad directions |
+| **Enter** or **X** | Start — start / pause |
+| **Tab** or **Z** | Back button |
+
+Mouse-look is **off by default** in this build: use the arrow keys for the camera. Mouse clicks are not bound to the triggers by these defaults. Modifier matching is exact, so holding Shift, Control, or Option can suppress an unmodified key binding. The Guide button is unbound.
 
 ## Project status
 
@@ -83,7 +107,7 @@ The current renderer uses the **FBO** path and a **mip0 workaround** from the pl
 
 ## Updates without reinstalling your game
 
-When the launcher opens, it checks the latest public Release. If a newer build is available, you can choose **Download and update** or **Not now**. The current Spanish buttons are **“Descargar y actualizar”** and **“Ahora no.”**
+When the launcher opens, it checks the latest public Release. If a newer build is available, you can choose **Download and update** or **Not now**. The English buttons are **“Download and update”** and **“Not now.”** Published versions through v0.10.0.2 show **“Descargar y actualizar”** and **“Ahora no.”**
 
 Before replacement, it validates the signed manifest, downloaded ZIP checksum, app identity, build number, and code signature. A separate helper replaces the app, keeps a previous copy, and opens the new version. If the app folder is not writable, the downloaded update is offered for manual installation.
 
