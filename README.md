@@ -66,6 +66,25 @@ The v0.10.0.3 launcher uses **English**, including update buttons and progress m
 
 Intel Macs, Windows, Linux, other disc revisions, and online multiplayer are **not validated by this release**.
 
+## PC settings — new in v0.10.0.4
+
+Open **Extras → Options**, then click **PC Settings** or press **F5** (Fn+F5 on some Macs). Adjust mouse sensitivity, rebind keyboard/mouse buttons, and choose English, Spanish, or French menu text. Save and restart to apply a language change. Native audio and subtitle options remain available.
+
+Select **Apply PC preset** to enable mouse look and these bindings:
+
+| Input | Action / Xbox mapping |
+| :--- | :--- |
+| Left / right mouse button | Fire / aim |
+| Middle mouse button | Right-stick press |
+| R / Q | X / Y |
+| C / Backspace | B — back |
+| Space / ; | A — confirm |
+| G / E | Left / right bumper |
+| Escape / Enter | Start |
+| F6 | Release / capture mouse |
+
+The preset is opt-in. Settings persist outside the app across updates. Mouse look emulates the right stick and retains the game's turn-speed limit. Original Xbox button prompts remain; controller hardware switching has not yet been playtested. See [host UI sources and integration notes](game-src/README.md).
+
 ## Keyboard controls
 
 The launcher enables keyboard-to-controller emulation. These are the current runtime defaults, not a remapped PC control scheme. In-game prompts still display Xbox buttons; actions depend on the current game context.

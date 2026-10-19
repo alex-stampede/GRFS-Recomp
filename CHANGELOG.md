@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0.4 — October 19, 2026
+
+- Added PC Settings in Extras → Options, opened with F5 or a click.
+- Added opt-in mouse controls, sensitivity, editable bindings, and middle-click right-stick press.
+- Added English, Spanish, and French menu language selection with persistent preferences.
+- Preserved the playable baseline and fullscreen fix; original Xbox prompts remain.
+- Cinematic and scene-reload graphical artifacts remain unresolved.
+
 ## 0.10.0.3 — October 19, 2026
 
 - Redesigned the launcher around the supplied GRFS background, dark colors, and teal accents.

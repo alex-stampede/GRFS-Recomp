@@ -1,0 +1,18 @@
+--- a/generated/aiclass/grfs_recomp.28.cpp
++++ b/generated/aiclass/grfs_recomp.28.cpp
+@@ -1,3 +1,5 @@
++#include <rex/cvar.h>
++#include <string_view>
+ #include "grfs_funcs.28.h"
+ 
+ DEFINE_REX_FUNC(sub_880B1148) {
+@@ -22134,6 +22136,9 @@
+ 	if (!ctx.cr6.eq) goto loc_884EED2C;
+ 	// lwz r3,4(r29)
+ 	ctx.r3.u64 = REX_LOAD_U32(ctx.r29.u32 + 4);
++	// ScreenLoaded payload is the native menu name, already read below by the guest.
++	rex::cvar::InvokeCommand("grfs_notify_screen",
++	    std::string_view(reinterpret_cast<const char*>(base + ctx.r3.u32)));
+ 	// lwz r28,9124(r25)
+ 	ctx.r28.u64 = REX_LOAD_U32(ctx.r25.u32 + 9124);
+ 	// mr r11,r3
