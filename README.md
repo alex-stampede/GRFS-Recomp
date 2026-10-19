@@ -32,7 +32,7 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 > **Bring your own game.** You must provide your own compatible Xbox 360 ISO. The download does not include a disc image or the original game data, textures, audio, or cinematics.
 
 > [!WARNING]
-> **This is an experimental release.** Campaign and Guerrilla have been playable on the development Mac, but visual bugs remain. The current binary requires **macOS 27.0 or newer** and has not yet been validated on a second Mac. It is ad-hoc signed, without Apple Developer ID signing or notarization.
+> **This is an experimental release.** Campaign and Guerrilla have been playable on the development Mac, but visual bugs remain. The current binary requires **macOS 27.0 or newer** and is developed on a **Mac mini M4 Pro with 24 GB of memory**. The owner also reports successful testing on a **MacBook Air M3 with 8 GB of memory**. It is ad-hoc signed, without Apple Developer ID signing or notarization.
 
 ## Highlights
 
@@ -101,7 +101,8 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 | Graphics | Playable; cinematic flicker and scene-reload corruption remain |
 | Shader storage | Persistent; first-use and some startup compilation can still occur |
 | Updates | v0.10.0.1 → v0.10.0.2 upgrade and backup tested on the development Mac |
-| Broader compatibility | Testing on other Macs is still needed |
+| Development machine | Mac mini M4 Pro · 24 GB memory |
+| Additional tested machine | MacBook Air M3 · 8 GB memory — reported working by the owner |
 
 The current renderer uses the **FBO** path and a **mip0 workaround** from the playable baseline. This improves the observed texture seams but is not a complete mipmap fix. No fixed frame-rate guarantee is made.
 
@@ -109,7 +110,7 @@ The current renderer uses the **FBO** path and a **mip0 workaround** from the pl
 
 When the launcher opens, it checks the latest public Release. If a newer build is available, you can choose **Download and update** or **Not now**. The English buttons are **“Download and update”** and **“Not now.”** Published versions through v0.10.0.2 show **“Descargar y actualizar”** and **“Ahora no.”**
 
-Before replacement, it validates the signed manifest, downloaded ZIP checksum, app identity, build number, and code signature. A separate helper replaces the app, keeps a previous copy, and opens the new version. If the app folder is not writable, the downloaded update is offered for manual installation.
+Before replacement, it validates the signed manifest, downloaded ZIP checksum, app identity, build number, and code signature. A separate helper replaces the app and opens the new version. Starting with v0.10.0.3, one previous copy is kept in the launcher’s data folder, outside Applications; older versions left backup apps beside the launcher. If the app folder is not writable, the downloaded update is offered for manual installation.
 
 **Your extracted game, saves, and shader storage stay outside the app.** If GitHub is unavailable, the launcher continues normally. Earlier prototypes need one manual app replacement to gain the updater. The upgrade from v0.10.0.1 to v0.10.0.2 has been exercised on the development Mac, including replacement, previous-version backup, and game relaunch.
 
@@ -126,6 +127,7 @@ All persistent data lives under:
 | `Cache/` | Known shaders and pipeline descriptions |
 | `Logs/` | Game and console logs |
 | `Updates/` | Downloaded and staged app updates |
+| `Backups/` | One previous app version, kept outside Applications |
 
 **Shader storage is not a complete precompiled shader pack.** The runtime loads known shaders and pipelines, but new scenes may still trigger compilation, and some work can recur at startup. Installation reaching 100% does not mean every shader is compiled. Saves from earlier development prototypes are not automatically migrated.
 
@@ -135,7 +137,7 @@ All persistent data lives under:
 - Reloading some campaign scenes can produce corrupted geometry or textures.
 - First-time effects and scenes may stutter during shader compilation.
 - The mip0 workaround does not fix the underlying mipmap handling.
-- Public distribution is not yet notarized, and second-Mac compatibility is unverified.
+- Public distribution is not yet notarized; testing beyond the two listed Macs is still needed.
 
 Found a problem? **[Open an issue](https://github.com/alex-stampede/GRFS-Recomp/issues/new/choose)** with your Mac model, macOS version, release version, reproduction steps, and a screenshot if useful. Review logs for personal information before attaching them. Please do not upload ISOs, original executables, or game data.
 
