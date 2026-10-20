@@ -28,6 +28,8 @@ else:
 game_info=dict(CFBundleIdentifier='local.grfs.game',CFBundleName='Ghost Recon Future Soldier Recomp',CFBundleDisplayName='Ghost Recon Future Soldier Recomp',CFBundleExecutable='grfs',CFBundleIconFile='GRFS.icns',CFBundlePackageType='APPL',CFBundleShortVersionString=version['version'],CFBundleVersion=str(version['build']),LSMinimumSystemVersion=version['minimumSystem'],NSHighResolutionCapable=True,LSMultipleInstancesProhibited=True)
 with (game_app/'Contents/Info.plist').open('wb') as f: plistlib.dump(game_info,f)
 shutil.copy2(root/'Resources/Background.jpg',resources/'Background.jpg')
+for destination in [resources, game_resources]:
+    shutil.copy2(root/'Resources/DockIcon.png', destination/'DockIcon.png')
 licenses=project/'THIRD_PARTY_LICENSES'
 if licenses.exists(): shutil.copytree(licenses,resources/'Licenses')
 info=dict(CFBundleDevelopmentRegion='en',CFBundleLocalizations=['en'],CFBundleIdentifier='local.grfs.launcher',CFBundleName='GRFS Recompiled',CFBundleDisplayName='Ghost Recon Future Soldier',CFBundleExecutable='GRFSLauncher',CFBundleIconFile='GRFS.icns',CFBundlePackageType='APPL',CFBundleShortVersionString=version['version'],CFBundleVersion=str(version['build']),LSMinimumSystemVersion=version['minimumSystem'],NSHighResolutionCapable=True)

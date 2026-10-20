@@ -118,6 +118,8 @@ final class Launcher: NSObject, NSApplicationDelegate {
     var child: Process?
     var launched = false
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let url = Bundle.main.url(forResource: "DockIcon", withExtension: "png"),
+           let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
         do {
             guard let manifest = Bundle.main.url(forResource: "compatible-game", withExtension: "json") else { throw Failure("The compatibility manifest is missing.") }
             expected = try JSONDecoder().decode([String:Expected].self, from: Data(contentsOf: manifest))
