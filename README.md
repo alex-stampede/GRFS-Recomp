@@ -44,6 +44,21 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
+## In-game screenshots
+
+Current owner-provided captures from October 21, 2026. Campaign missions, the
+campaign Gunsmith / weapon selection screen, and Guerrilla are accessible and
+playable in the current port. These captures document tested sections; they do
+not establish that every mission or feature is complete. Visual issues remain.
+
+| Campaign | Campaign — drone view |
+| :---: | :---: |
+| ![Campaign gameplay](docs/images/gameplay/campaign.jpg) | ![Campaign drone reconnaissance](docs/images/gameplay/campaign-drone.jpg) |
+| **Campaign — Gunsmith / weapon selection** | **Campaign — takedown** |
+| ![Campaign Gunsmith and weapon selection](docs/images/gameplay/gunsmith.jpg) | ![Campaign takedown](docs/images/gameplay/campaign-takedown.jpg) |
+| **Guerrilla — stealth** | **Guerrilla — combat** |
+| ![Guerrilla stealth](docs/images/gameplay/guerrilla-stealth.jpg) | ![Guerrilla combat](docs/images/gameplay/guerrilla.jpg) |
+
 ## Getting started
 
 1. Download **[GRFS-Recompiled-macOS-arm64.zip](https://github.com/alex-stampede/GRFS-Recomp/releases/latest/download/GRFS-Recompiled-macOS-arm64.zip)** from the latest Release.

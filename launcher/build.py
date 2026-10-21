@@ -2,9 +2,11 @@
 """Build a local macOS ARM64 launcher; never package game assets."""
 from pathlib import Path
 import subprocess, shutil, plistlib, os, json, hashlib
+from build_icon import build_icon
 root=Path(__file__).resolve().parent
 project=root.parent
-app=root/'dist/GRFS Recompiled.app'
+output=Path(os.environ.get('GRFS_OUTPUT_DIR',root/'dist'))
+app=output/'GRFS Recompiled.app'
 if app.exists(): shutil.rmtree(app)
 mac=app/'Contents/MacOS'; resources=app/'Contents/Resources'
 game_app=resources/'Game.app'; runtime=game_app/'Contents/MacOS'; game_resources=game_app/'Contents/Resources'
@@ -20,6 +22,8 @@ subprocess.run(['clang','-dynamiclib','-fobjc-arc',str(root/'GameTitle.m'),str(r
 subprocess.run(['swiftc',str(root/'UpdateHelper.swift'),'-o',str(resources/'ApplyUpdate'),'-framework','AppKit','-module-cache-path','/private/tmp/grfs-swift-cache'],check=True)
 for name in ['compatible-game.json','required-files.json','update-public-key.txt']: shutil.copy2(root/name,resources/name)
 icon=Path(os.environ.get('GRFS_ICON_FILE',root/'GRFS.icns'))
+if 'GRFS_ICON_FILE' not in os.environ:
+    build_icon(root/'Resources/DockIcon.png', icon)
 if icon.exists():
     shutil.copy2(icon,resources/'GRFS.icns')
     shutil.copy2(icon,game_resources/'GRFS.icns')
@@ -39,11 +43,11 @@ with (app/'Contents/Info.plist').open('wb') as f: plistlib.dump(info,f)
 # Ad-hoc signing is for local testing, not Apple notarization.
 subprocess.run(['codesign','--force','--deep','--sign','-',str(app)],check=True)
 subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
-archive=root/'dist/GRFS-Recompiled-macOS-arm64.zip'
+archive=output/'GRFS-Recompiled-macOS-arm64.zip'
 archive.unlink(missing_ok=True)
 subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(app),str(archive)],check=True)
 digest=hashlib.sha256(archive.read_bytes()).hexdigest()
-(root/'dist/SHA256SUMS.txt').write_text(digest+'  '+archive.name+'\n')
+(output/'SHA256SUMS.txt').write_text(digest+'  '+archive.name+'\n')
 payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Transparent GRFS Dock icon for the launcher and game. Starts in native macOS fullscreen and declares Game Mode support; macOS controls activation and remembers your preference. The v0.10.0.4 game/runtime/GPU code and graphics configuration are preserved; no performance or geometry experiments are included.')
-(root/'dist/update-payload.json').write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
+(output/'update-payload.json').write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
 print(app)
