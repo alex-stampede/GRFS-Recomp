@@ -66,6 +66,18 @@ The v0.10.0.3 launcher uses **English**, including update buttons and progress m
 
 Intel Macs, Windows, Linux, other disc revisions, and online multiplayer are **not validated by this release**.
 
+## macOS Game Mode — v0.10.0.5
+
+The game now starts in native macOS fullscreen and declares Game Mode support.
+macOS manages activation: while fullscreen, open Game Overlay from the game icon
+in the menu bar to check its status. If you previously turned Game Mode off for
+GRFS, turn it back on there; macOS remembers this preference. Returning to windowed
+mode is still supported. See [Apple’s Game Mode guide](https://support.apple.com/en-us/105118).
+
+This update also applies the transparent GRFS skull directly to the running Dock
+icon. It preserves the v0.10.0.4 renderer and game code; experimental FPS caps,
+async profiles, cache fixes and geometry probes are not part of this release.
+
 ## PC settings — new in v0.10.0.4
 
 Open **Extras → Options**, then click **PC Settings** or press **F5** (Fn+F5 on some Macs). Adjust mouse sensitivity, rebind keyboard/mouse buttons, and choose English, Spanish, or French menu text. Save and restart to apply a language change. Native audio and subtitle options remain available.

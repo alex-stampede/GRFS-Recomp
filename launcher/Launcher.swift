@@ -220,8 +220,10 @@ final class Launcher: NSObject, NSApplicationDelegate {
             let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("Cache"), logs = home.appendingPathComponent("Logs")
             for path in [user,cache,logs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime
-            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode","--no-fullscreen","--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--log_level=info"]
+            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode","--fullscreen","--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--log_level=info"]
             var env = ProcessInfo.processInfo.environment
+            // macOS Game Mode requires native fullscreen Spaces, not a borderless window.
+            env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
             env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.0"
             env["DYLD_INSERT_LIBRARIES"] = runtime.appendingPathComponent("libGRFSWindowTitle.dylib").path

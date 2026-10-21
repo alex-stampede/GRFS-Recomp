@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0.5 — October 21, 2026
+
+- Apply the transparent GRFS skull directly to the running launcher and game Dock icons.
+- Declare macOS Game Mode support and the Games application category for both app bundles.
+- Start the game in native macOS fullscreen, where the system can activate Game Mode. A previously disabled per-game preference is respected.
+- Preserve the v0.10.0.4 game/runtime/GPU code and graphics configuration. No performance or geometry experiments are included.
+
 ## 0.10.0.4 — October 19, 2026
 
 - Added PC Settings in Extras → Options, opened with F5 or a click.

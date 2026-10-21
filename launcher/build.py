@@ -26,6 +26,7 @@ if icon.exists():
 else:
     raise SystemExit('GRFS_ICON_FILE must point to a valid .icns so both apps have a Dock icon.')
 game_info=dict(CFBundleIdentifier='local.grfs.game',CFBundleName='Ghost Recon Future Soldier Recomp',CFBundleDisplayName='Ghost Recon Future Soldier Recomp',CFBundleExecutable='grfs',CFBundleIconFile='GRFS.icns',CFBundlePackageType='APPL',CFBundleShortVersionString=version['version'],CFBundleVersion=str(version['build']),LSMinimumSystemVersion=version['minimumSystem'],NSHighResolutionCapable=True,LSMultipleInstancesProhibited=True)
+game_info.update(LSApplicationCategoryType='public.app-category.games', LSSupportsGameMode=True, GCSupportsGameMode=True)
 with (game_app/'Contents/Info.plist').open('wb') as f: plistlib.dump(game_info,f)
 shutil.copy2(root/'Resources/Background.jpg',resources/'Background.jpg')
 for destination in [resources, game_resources]:
@@ -33,6 +34,7 @@ for destination in [resources, game_resources]:
 licenses=project/'THIRD_PARTY_LICENSES'
 if licenses.exists(): shutil.copytree(licenses,resources/'Licenses')
 info=dict(CFBundleDevelopmentRegion='en',CFBundleLocalizations=['en'],CFBundleIdentifier='local.grfs.launcher',CFBundleName='GRFS Recompiled',CFBundleDisplayName='Ghost Recon Future Soldier',CFBundleExecutable='GRFSLauncher',CFBundleIconFile='GRFS.icns',CFBundlePackageType='APPL',CFBundleShortVersionString=version['version'],CFBundleVersion=str(version['build']),LSMinimumSystemVersion=version['minimumSystem'],NSHighResolutionCapable=True)
+info.update(LSApplicationCategoryType='public.app-category.games', LSSupportsGameMode=True, GCSupportsGameMode=True)
 with (app/'Contents/Info.plist').open('wb') as f: plistlib.dump(info,f)
 # Ad-hoc signing is for local testing, not Apple notarization.
 subprocess.run(['codesign','--force','--deep','--sign','-',str(app)],check=True)
@@ -42,6 +44,6 @@ archive.unlink(missing_ok=True)
 subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(app),str(archive)],check=True)
 digest=hashlib.sha256(archive.read_bytes()).hexdigest()
 (root/'dist/SHA256SUMS.txt').write_text(digest+'  '+archive.name+'\n')
-payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='PC Settings in Extras > Options (F5), configurable mouse sensitivity and bindings, and menu language selection. PC controls are opt-in. Original Xbox prompts remain. Existing game files, saves and shader storage are preserved.')
+payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Transparent GRFS Dock icon for the launcher and game. Starts in native macOS fullscreen and declares Game Mode support; macOS controls activation and remembers your preference. The v0.10.0.4 game/runtime/GPU code and graphics configuration are preserved; no performance or geometry experiments are included.')
 (root/'dist/update-payload.json').write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
 print(app)

@@ -18,9 +18,14 @@ assert (icd.parent/driver).resolve().is_file(),'Packaged driver manifest points 
 assert inner['CFBundleExecutable']=='grfs'
 assert inner['CFBundleName']=='Ghost Recon Future Soldier Recomp'
 assert outer['CFBundleVersion']==inner['CFBundleVersion']
+for info in [outer, inner]:
+    assert info['LSApplicationCategoryType']=='public.app-category.games'
+    assert info['LSSupportsGameMode'] is True
+    assert info['GCSupportsGameMode'] is True
 for bundle in [app,game]:
     icon=bundle/'Contents/Resources/GRFS.icns'
     assert icon.exists() and icon.read_bytes()[:4]==b'icns'
+    assert (bundle/'Contents/Resources/DockIcon.png').read_bytes()==(root/'Resources/DockIcon.png').read_bytes()
 assert (app/'Contents/Resources/GRFS.icns').read_bytes()==(game/'Contents/Resources/GRFS.icns').read_bytes()
 base=Path(os.environ['GRFS_RUNTIME_DIR'])
 # The executable is ad-hoc re-signed during packaging; compare Mach-O code sections,
