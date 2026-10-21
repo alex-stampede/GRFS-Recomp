@@ -44,6 +44,16 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
+## Shader cache update — v0.10.0.6
+
+This release fixes shader/pipeline storage being truncated on reopen on macOS.
+Existing shader storage is copied into `CachePersistent` without deleting the
+original; players who used the Game Mode cache test keep that warmed storage.
+The owner reports smoother revisited areas on MacBook Air M3. This is not an FPS
+or temperature benchmark. New effects can still compile shaders during play.
+Native fullscreen/Game Mode, synchronous compilation and current graphics settings
+are retained. No asynchronous rendering, FPS cap or geometry experiment is enabled.
+
 ## In-game screenshots
 
 Current owner-provided captures from October 21, 2026. Campaign missions, the

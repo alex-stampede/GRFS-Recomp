@@ -17,6 +17,8 @@ if not (base/'grfs').exists(): raise SystemExit('Set GRFS_RUNTIME_DIR to a compa
 subprocess.run(['swiftc',str(root/'main.swift'),str(root/'Launcher.swift'),str(root/'Updater.swift'),str(root/'LauncherTheme.swift'),str(root/'LegacyBackups.swift'),'-o',str(mac/'GRFSLauncher'),'-framework','AppKit','-framework','CryptoKit','-module-cache-path','/private/tmp/grfs-swift-cache'],check=True)
 for name in ['grfs','librexruntime.dylib','librexgpu-xenos.dylib','libgrfs_AICLASS_X360_F.dylib','libTracyClient.dylib']:
     shutil.copy2(base/name,runtime/name)
+if os.environ.get('GRFS_GPU_FILE'):
+    shutil.copy2(Path(os.environ['GRFS_GPU_FILE']),runtime/'librexgpu-xenos.dylib')
 shutil.copytree(base/'vulkan',runtime/'vulkan')
 subprocess.run(['clang','-dynamiclib','-fobjc-arc',str(root/'GameTitle.m'),str(root/'FullscreenDiagnostics.m'),'-framework','QuartzCore','-framework','AppKit','-o',str(runtime/'libGRFSWindowTitle.dylib')],check=True)
 subprocess.run(['swiftc',str(root/'UpdateHelper.swift'),'-o',str(resources/'ApplyUpdate'),'-framework','AppKit','-module-cache-path','/private/tmp/grfs-swift-cache'],check=True)
@@ -48,6 +50,6 @@ archive.unlink(missing_ok=True)
 subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(app),str(archive)],check=True)
 digest=hashlib.sha256(archive.read_bytes()).hexdigest()
 (output/'SHA256SUMS.txt').write_text(digest+'  '+archive.name+'\n')
-payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Transparent GRFS Dock icon for the launcher and game. Starts in native macOS fullscreen and declares Game Mode support; macOS controls activation and remembers your preference. The v0.10.0.4 game/runtime/GPU code and graphics configuration are preserved; no performance or geometry experiments are included.')
+payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Transparent application and Dock icons. Fixes macOS shader-cache persistence and imports existing shader storage into a rollback-safe cache. Keeps native fullscreen/Game Mode, synchronous shaders and current graphics settings. The owner reports smoother revisited areas on MacBook Air M3; no FPS or temperature improvement is guaranteed.')
 (output/'update-payload.json').write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
 print(app)

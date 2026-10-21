@@ -2,7 +2,7 @@
 from pathlib import Path
 import plistlib,hashlib,subprocess,os,tempfile,shutil
 root=Path(__file__).resolve().parent
-app=root/'dist/GRFS Recompiled.app'
+app=Path(os.environ.get('GRFS_OUTPUT_DIR',root/'dist'))/'GRFS Recompiled.app'
 game=app/'Contents/Resources/Game.app'
 load=lambda p:plistlib.loads(p.read_bytes())
 outer=load(app/'Contents/Info.plist');inner=load(game/'Contents/Info.plist')
@@ -32,7 +32,8 @@ base=Path(os.environ['GRFS_RUNTIME_DIR'])
 # not embedded signatures, by checking the __TEXT section dump.
 for name in ['grfs','librexruntime.dylib','librexgpu-xenos.dylib','libgrfs_AICLASS_X360_F.dylib','libTracyClient.dylib']:
     output=lambda p:subprocess.check_output(['otool','-t',str(p)]).split(b'\n',1)[1]
-    assert output(base/name)==output(game/'Contents/MacOS'/name),name
+    expected=Path(os.environ['GRFS_GPU_FILE']) if name=='librexgpu-xenos.dylib' and os.environ.get('GRFS_GPU_FILE') else base/name
+    assert output(expected)==output(game/'Contents/MacOS'/name),name
 subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
 # Exercise Foundation's real main-bundle resolution for the nested executable layout.
 with tempfile.TemporaryDirectory() as temporary:

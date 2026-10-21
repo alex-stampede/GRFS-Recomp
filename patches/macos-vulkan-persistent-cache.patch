@@ -1,0 +1,22 @@
+--- a/src/graphics/vulkan/pipeline_cache.cpp
++++ b/src/graphics/vulkan/pipeline_cache.cpp
+@@ -429,6 +429,9 @@
+         rex::path_to_utf8(pipeline_storage_file_path));
+     return;
+   }
++  // BSD/macOS append-update streams may start at EOF. Read the header from zero.
++  // Writes still append, preserving the existing storage format.
++  rewind(pipeline_storage_file_);
+   pipeline_storage_file_flush_needed_ = false;
+   // 'XEPS'.
+   const uint32_t pipeline_storage_magic = 0x53504558;
+@@ -514,6 +517,9 @@
+     pipeline_storage_file_ = nullptr;
+     return;
+   }
++  // BSD/macOS append-update streams may start at EOF. Read the header from zero.
++  // Writes still append, preserving the existing storage format.
++  rewind(shader_storage_file_);
+   ++shader_storage_index_;
+   shader_storage_file_flush_needed_ = false;
+   struct {

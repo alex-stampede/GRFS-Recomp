@@ -36,3 +36,12 @@ The packaged game lives in `Contents/Resources/Game.app`, with bundle identifier
 `../patches/macos-metal-swapchain.patch` changes only macOS swapchain replacement ordering in the SDK presenter: destroy the previous swapchain before constructing its replacement, avoiding MoltenVK resetting the replacement’s CAMetalLayer to 1×1 while completing older presents. The compiled runtime must include this patch. The owner confirmed visible fullscreen and windowed output in the instrumented test.
 
 The package test also checks that the bundled Vulkan ICD manifest exists and resolves to the bundled MoltenVK library.
+
+### v0.10.0.6 packaging
+
+The release GPU includes `patches/macos-vulkan-persistent-cache.patch` against
+the previously distributed SDK sources. Build a compatible SDK with that patch,
+then set `GRFS_GPU_FILE` to its `librexgpu-xenos.dylib` when using a preserved
+`GRFS_RUNTIME_DIR`. `build.py` generates the transparent ICNS from DockIcon.png.
+`GRFS_OUTPUT_DIR` optionally selects a separate packaging directory. The release
+uses synchronous shaders and a rollback-safe CachePersistent directory.

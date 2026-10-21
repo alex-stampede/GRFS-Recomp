@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0.6 — October 21, 2026
+
+- Package the transparent GRFS skull as the application ICNS, matching the running Dock icon.
+- Rewind macOS append-update shader and pipeline files before reading their headers, preventing existing storage from being truncated on reopen.
+- Import existing shaders into a separate persistent cache; prefer the tested Game Mode cache when present and keep older storage intact for rollback.
+- Retain native fullscreen/Game Mode, synchronous compilation, controls and the current graphics settings.
+- Add current Campaign, Gunsmith and Guerrilla screenshots. The owner reports smoother revisited sections on MacBook Air M3; these runs do not measure FPS or Celsius temperatures.
+
 ## 0.10.0.5 — October 21, 2026
 
 - Apply the transparent GRFS skull directly to the running launcher and game Dock icons.

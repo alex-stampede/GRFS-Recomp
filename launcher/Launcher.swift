@@ -217,8 +217,18 @@ final class Launcher: NSObject, NSApplicationDelegate {
         guard child == nil else { return }
         do {
             let runtime = Bundle.main.resourceURL!.appendingPathComponent("Game.app/Contents/MacOS")
-            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("Cache"), logs = home.appendingPathComponent("Logs")
+            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("CachePersistent"), logs = home.appendingPathComponent("Logs")
             for path in [user,cache,logs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
+            // Keep the fixed cache away from older releases that can truncate storage.
+            let shaders = cache.appendingPathComponent("shaders")
+            if !fm.fileExists(atPath:shaders.path) {
+                let candidates = ["CacheGameModeTest", "Cache"].map { home.appendingPathComponent($0+"/shaders") }
+                if let source = candidates.first(where: { fm.fileExists(atPath:$0.path) }) {
+                    let stage = cache.appendingPathComponent(".shaders-import-"+UUID().uuidString)
+                    do { try fm.copyItem(at:source,to:stage); try fm.moveItem(at:stage,to:shaders) }
+                    catch { try? fm.removeItem(at:stage); throw error }
+                }
+            }
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime
             p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode","--fullscreen","--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--log_level=info"]
             var env = ProcessInfo.processInfo.environment
