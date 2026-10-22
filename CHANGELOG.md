@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0.7 — October 22, 2026
+
+- Detach the PC Settings dialog while native Options is closed, avoiding continuous empty UI redraws.
+- Add an optional F5 performance HUD with guest swap requests/s, mean interval and p95; save its enabled state with PC preferences.
+- Use a native mouse-transparent HUD instead of keeping the ImGui renderer attached during gameplay.
+- Disable inherited Apple presentation HUD in normal launches to avoid confusing UI presentations with game requests.
+- Keep the v0.10.0.6 GPU/runtime and graphics settings. Owner verified F5, HUD toggling, saving and gameplay; M3 performance uplift is not yet measured.
+
 ## 0.10.0.6 — October 21, 2026
 
 - Package the transparent GRFS skull as the application ICNS, matching the running Dock icon.

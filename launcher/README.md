@@ -45,3 +45,11 @@ then set `GRFS_GPU_FILE` to its `librexgpu-xenos.dylib` when using a preserved
 `GRFS_RUNTIME_DIR`. `build.py` generates the transparent ICNS from DockIcon.png.
 `GRFS_OUTPUT_DIR` optionally selects a separate packaging directory. The release
 uses synchronous shaders and a rollback-safe CachePersistent directory.
+
+### v0.10.0.7 packaging
+
+Compile the game with all three `game-src` headers. The new macOS VdSwap wrapper
+must be in the executable; the SDK runtime/GPU remain the protected v0.10.0.6
+versions. `build.py` compiles the title shim and `PerformanceHUD.mm` as Objective-C++.
+Keep its exported HUD bridge symbols; the game resolves them at runtime. The HUD
+is disabled by default, opt-in in F5, and persists via `UserData/grfs.toml`.

@@ -7,11 +7,14 @@ int main() {
   using rex::input::mnk::SetMouseLookActive;
   using rex::input::mnk::IsMouseLookActive;
   SetMouseLookActive(true);
+  int visibility_events = 0;
+  visibility_changed = [&] { ++visibility_events; };
   assert(rex::cvar::InvokeCommand("grfs_notify_options_open", ""));
   assert(native_open && !IsMouseLookActive());
   // Repeated open notifications must not overwrite the saved capture state.
   assert(rex::cvar::InvokeCommand("grfs_notify_options_open", ""));
   panel_open = true;
+  assert(visibility_events == 1); // repeated open must not enqueue another attach
   assert(rex::cvar::InvokeCommand("grfs_notify_options_close", ""));
   assert(!native_open && !panel_open && IsMouseLookActive());
   SetMouseLookActive(false);
@@ -27,4 +30,6 @@ int main() {
   assert(rex::cvar::InvokeCommand("grfs_notify_screen", "Extras.feu"));
   assert(!native_open && !panel_open);
   assert(!IsMouseLookActive());
+  assert(visibility_events == 6); // three genuine open/close pairs, no stale close
+  visibility_changed = {};
 }

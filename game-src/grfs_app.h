@@ -13,6 +13,7 @@
 #include "grfs_pc_options.h"
 #include <rex/ui/keybinds.h>
 #include <rex/input/mnk/mnk_input_driver.h>
+#include "grfs_frame_counter.h"
 
 class GrfsApp : public rex::ReXApp {
  public:
@@ -43,6 +44,18 @@ class GrfsApp : public rex::ReXApp {
   void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
     pc_drawer_ = drawer;
     pc_options_ = std::make_unique<grfs::options::Dialog>(drawer, pc_config_, pc_font_);
+    // A registered empty ImGui dialog still forces continuous host repaints.
+    // Keep the object alive, but attach it only while native Options is open.
+    drawer->RemoveDialog(pc_options_.get());
+    grfs::options::visibility_changed = [this, alive = pc_alive_] {
+      app_context().CallInUIThreadDeferred([this, alive] {
+        if (!alive->load()) return;
+        if (!pc_options_) return;
+        if (grfs::options::native_open.load()) pc_drawer_->AddDialog(pc_options_.get());
+        else pc_drawer_->RemoveDialog(pc_options_.get());
+      });
+    };
+    grfs::options::ApplyPerformanceHUD(rex::cvar::GetFlagByName("grfs_performance_hud") == "true");
     rex::ui::RegisterBind("bind_grfs_pc_options", "F5", "PC settings inside game Options", [] {
       if (grfs::options::native_open.load())
         grfs::options::panel_open = !grfs::options::panel_open.load();
@@ -61,6 +74,16 @@ class GrfsApp : public rex::ReXApp {
         return !grfs::options::panel_open.load() && !io.WantCaptureMouse && !io.WantCaptureKeyboard;
       });
     }
+  }
+
+  void OnShutdown() override {
+    {
+      std::lock_guard<std::mutex> lock(grfs::options::visibility_mutex);
+      pc_alive_->store(false);
+      grfs::options::visibility_changed = {};
+    }
+    grfs::options::ApplyPerformanceHUD(false);
+    pc_options_.reset();
   }
 
   // Optional read-only snapshot for callback-table analysis. Disabled normally.
@@ -84,6 +107,7 @@ class GrfsApp : public rex::ReXApp {
   rex::ui::ImGuiDrawer* pc_drawer_ = nullptr;
   ImFont* pc_font_ = nullptr;
   std::unique_ptr<grfs::options::Dialog> pc_options_;
+  std::shared_ptr<std::atomic<bool>> pc_alive_ = std::make_shared<std::atomic<bool>>(true);
 
   // Override virtual hooks for customization:
   // void OnPostInitLogging() override {}

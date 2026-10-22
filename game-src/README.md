@@ -23,7 +23,7 @@ Features:
 
 ## Build integration
 
-Copy `grfs_app.h` and `grfs_pc_options.h` into the game's `src/` directory.
+Copy `grfs_app.h`, `grfs_pc_options.h` and `grfs_frame_counter.h` into the game's `src/` directory.
 Keep the existing `main.cpp` that includes the generated default image config
 before `grfs_app.h`. Apply `patches/grfs-native-options.patch` at the game
 project root **after** generating the code; regeneration may remove this hook.
@@ -58,3 +58,20 @@ Included in the v0.10.0.4 release.
 
 
 Menu-footer experiments were withdrawn at the owner’s request and are not part of this candidate. Original game button prompts remain.
+
+## v0.10.0.7: idle UI and performance HUD
+
+The dialog object remains alive but is registered with ImGui only while native
+Options is open. Screen notifications queue attachment changes on the UI thread;
+shutdown invalidates queued tasks before deleting the dialog. This avoids
+continuous host redraws from an invisible dialog. Other SDK overlays retain their
+normal lifecycle.
+
+On macOS the game executable forwards `__imp__VdSwap` to the existing runtime
+implementation using `RTLD_NEXT`, preserving the original context and return
+values, then records one CPU-side guest swap request if the native HUD is enabled.
+`launcher/PerformanceHUD.mm` belongs in the injected title shim. The HUD uses a
+mouse-transparent AppKit view and a 4 Hz timer, not a persistent ImGui dialog.
+It counts requests, not GPU-completed frames or unique displayed images. It writes
+no trace files unless the local diagnostic `GRFS_HUD_TRACE` environment flag is
+explicitly set. The normal launcher disables the inherited Apple HUD.

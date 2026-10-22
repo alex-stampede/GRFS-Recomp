@@ -236,6 +236,9 @@ final class Launcher: NSObject, NSApplicationDelegate {
             env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
             env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.0"
+            // The GRFS HUD is opt-in in F5 and counts guest swap requests.
+            // Do not inherit Apple's presentation/UI FPS HUD as game FPS.
+            env["MTL_HUD_ENABLED"] = "0"
             env["DYLD_INSERT_LIBRARIES"] = runtime.appendingPathComponent("libGRFSWindowTitle.dylib").path
             if Bundle.main.object(forInfoDictionaryKey:"GRFSFullscreenTrace") as? Bool == true { env["GRFS_FULLSCREEN_TRACE"] = "1" }
             p.environment = env

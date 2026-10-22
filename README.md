@@ -44,6 +44,23 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
+## Performance HUD and idle UI fix — v0.10.0.7
+
+Open **Extras → Options → F5 → Performance HUD**, then **Save settings** to
+remember your choice. It is off by default. The HUD shows **game swap requests
+per second**, their mean interval and p95 over a rolling two-second window.
+It excludes UI redraws, but it is not a GPU-completed, unique-image or simulation
+FPS counter. Apple's Metal HUD can count additional presentations of the same
+game image, so a value such as 200 FPS does not imply 200 game frames per second.
+
+PC Settings now detaches from the renderer while the original Options screen
+is closed. Previously its invisible dialog kept the host UI redraw loop active.
+A development-Mac startup check reduced host presentations from about 138/s to
+60/s while game requests remained around 30/s. **This is reduced redraw work,
+not a measured M3 gameplay FPS gain.** The owner verified F5, HUD toggling,
+saving settings and returning to gameplay. The v0.10.0.6 GPU/runtime, mip0,
+synchronous shaders, native fullscreen/Game Mode and installation flow are retained.
+
 ## Shader cache update — v0.10.0.6
 
 This release fixes shader/pipeline storage being truncated on reopen on macOS.

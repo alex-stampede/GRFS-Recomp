@@ -3,6 +3,9 @@
 #include <atomic>
 #include <fstream>
 #include <string>
+#include <functional>
+#include <mutex>
+#include <dlfcn.h>
 #include <rex/cvar.h>
 #include <rex/ui/imgui_dialog.h>
 #include <rex/ui/keybinds.h>
@@ -14,12 +17,27 @@ namespace grfs::options {
 inline std::atomic<bool> native_open{false};
 inline std::atomic<bool> panel_open{false};
 inline std::atomic<bool> restore_mouse{false};
+// Installed on startup; notifications queue attachment changes on the UI thread.
+inline std::function<void()> visibility_changed;
+inline std::mutex visibility_mutex;
+inline void NotifyVisibility() {
+  std::lock_guard<std::mutex> lock(visibility_mutex);
+  if (visibility_changed) visibility_changed();
+}
+inline void ApplyPerformanceHUD(bool enabled) {
+#if REX_PLATFORM_MAC
+  using Setter = void (*)(int, int);
+  static auto setter = reinterpret_cast<Setter>(dlsym(RTLD_DEFAULT, "GRFSSetPerformanceHUD"));
+  if (setter) setter(enabled, rex::cvar::GetFlagByName("user_language") == "5");
+#endif
+}
 
 inline void NotifyOpen() {
   if (!native_open.exchange(true)) {
     restore_mouse = rex::input::mnk::IsMouseLookActive();
     rex::input::mnk::SetMouseLookActive(false);
     REXLOG_INFO("[GRFS OPTIONS] opened");
+    NotifyVisibility();
   }
 }
 inline void NotifyClose() {
@@ -27,6 +45,7 @@ inline void NotifyClose() {
   if (native_open.exchange(false)) {
     rex::input::mnk::SetMouseLookActive(restore_mouse.load());
     REXLOG_INFO("[GRFS OPTIONS] closed");
+    NotifyVisibility();
   }
 }
 
@@ -183,6 +202,14 @@ class Dialog final : public rex::ui::ImGuiDialog {
     ImGui::TextWrapped("%s", Text("Audio and subtitles: use the original game options.",
                                   "Audio y subtitulos: usa las opciones originales del juego."));
     ImGui::Separator();
+    bool hud = rex::cvar::GetFlagByName("grfs_performance_hud") == "true";
+    if (ImGui::Checkbox(Text("Performance HUD", "HUD de rendimiento"), &hud)) {
+      Set("grfs_performance_hud", hud ? "true" : "false");
+      ApplyPerformanceHUD(hud);
+    }
+    ImGui::TextWrapped("%s", Text("Counts game swap requests, not UI redraws. Save to remember this setting.",
+      "Cuenta solicitudes de cuadro del juego, no redibujados de interfaz. Guarda para recordar este ajuste."));
+    ImGui::Separator();
     bool mouse = rex::cvar::GetFlagByName("mnk_mouse") == "true";
     if (ImGui::Checkbox(Text("Mouse camera", "Camara con raton"), &mouse)) Set("mnk_mouse", mouse ? "true" : "false");
     float sensitivity = std::stof(rex::cvar::GetFlagByName("mnk_sensitivity"));
@@ -246,6 +273,9 @@ class Dialog final : public rex::ui::ImGuiDialog {
   }
 };
 }  // namespace grfs::options
+
+REXCVAR_DEFINE_BOOL(grfs_performance_hud, false, "GRFS/Performance",
+                   "Show guest swap rate and frame intervals; excludes UI redraws");
 
 REXCVAR_DEFINE_COMMAND(grfs_notify_options_open, [] { grfs::options::NotifyOpen(); },
                        "GRFS/Internal", "Native options open notification").debug_only();
