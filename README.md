@@ -44,6 +44,21 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
+## Resolution and restart — v0.10.0.8
+
+Open **Extras → Options → F5**, choose **Fullscreen / Windowed** and an **Output resolution limit**, then
+**Save and restart**. Available limits are **1280×720**, **1600×900**,
+**1920×1080** (default), and **Native**. The launcher closes the game normally
+and relaunches it with the saved preferences. Ordinary exits and crashes do not
+trigger a restart.
+
+The cap also applies in native macOS fullscreen, retaining Game Mode support
+without changing the desktop display mode. It preserves aspect ratio and never
+upscales smaller windows: a 3420×2148 surface capped at 1080p uses 1719×1080.
+This controls presentation output, **not Xbox internal render-target resolution**.
+Mip0 remains enabled; dynamic mipmaps are a separate experiment. Lower output
+resolution is not a guarantee of 30 FPS; M3 performance remains scene-dependent.
+
 ## Performance HUD and idle UI fix — v0.10.0.7
 
 Open **Extras → Options → F5 → Performance HUD**, then **Save settings** to

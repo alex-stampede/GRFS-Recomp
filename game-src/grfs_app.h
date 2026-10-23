@@ -42,6 +42,24 @@ class GrfsApp : public rex::ReXApp {
   }
 
   void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
+    grfs::options::restart_game = [this] {
+      const char* path = std::getenv("GRFS_RESTART_REQUEST");
+      const char* token = std::getenv("GRFS_RESTART_TOKEN");
+      if (!path || !*path || !token || !*token) return false;
+      try {
+        const std::filesystem::path request(path);
+        auto temporary = request; temporary += ".tmp";
+        std::ofstream file;
+        file.exceptions(std::ios::badbit | std::ios::failbit);
+        file.open(temporary); file << token; file.close();
+        std::filesystem::rename(temporary, request);
+      } catch (const std::exception&) { return false; }
+      REXLOG_INFO("[GRFS RESTART] preferences saved; requesting window close");
+      // Use the window close path; quitting the UI loop directly skips
+      // title termination and can deadlock while joining guest threads.
+      app_context().CallInUIThreadDeferred([this] { if (window()) window()->RequestClose(); });
+      return true;
+    };
     pc_drawer_ = drawer;
     pc_options_ = std::make_unique<grfs::options::Dialog>(drawer, pc_config_, pc_font_);
     // A registered empty ImGui dialog still forces continuous host repaints.
@@ -82,6 +100,7 @@ class GrfsApp : public rex::ReXApp {
       pc_alive_->store(false);
       grfs::options::visibility_changed = {};
     }
+    grfs::options::restart_game = {};
     grfs::options::ApplyPerformanceHUD(false);
     pc_options_.reset();
   }

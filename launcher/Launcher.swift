@@ -230,8 +230,10 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 }
             }
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime
-            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode","--fullscreen","--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--log_level=info"]
+            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--log_level=info"]
+            let restart = RestartRequest(directory: logs)
             var env = ProcessInfo.processInfo.environment
+            env.merge(restart.environment) { _, new in new }
             // macOS Game Mode requires native fullscreen Spaces, not a borderless window.
             env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
@@ -246,8 +248,11 @@ final class Launcher: NSObject, NSApplicationDelegate {
             let file = try FileHandle(forWritingTo:output); p.standardOutput = file; p.standardError = file
             p.terminationHandler = { process in
                 try? file.close()
+                let shouldRestart = restart.consume(exitStatus: process.terminationStatus)
                 DispatchQueue.main.async {
-                    self.child = nil; self.status.stringValue = process.terminationStatus == 0 ? "Game closed. Saves and shader storage preserved." : "The game exited with code \(process.terminationStatus). Check the Logs folder."
+                    self.child = nil
+                    if shouldRestart { self.startGame(); return }
+                    self.status.stringValue = process.terminationStatus == 0 ? "Game closed. Saves and shader storage preserved." : "The game exited with code \(process.terminationStatus). Check the Logs folder."
                     self.button.title = "Play game"; self.button.isEnabled = true
                     if process.terminationStatus == 0 { NSApp.terminate(nil) }
                     else { NSApp.setActivationPolicy(.regular); self.window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }

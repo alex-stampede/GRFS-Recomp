@@ -14,7 +14,7 @@ mac.mkdir(parents=True); runtime.mkdir(parents=True); game_resources.mkdir(paren
 base=Path(os.environ.get('GRFS_RUNTIME_DIR',root/'runtime'))
 version=json.loads((root/'version.json').read_text())
 if not (base/'grfs').exists(): raise SystemExit('Set GRFS_RUNTIME_DIR to a compatible compiled runtime directory (see README).')
-subprocess.run(['swiftc',str(root/'main.swift'),str(root/'Launcher.swift'),str(root/'Updater.swift'),str(root/'LauncherTheme.swift'),str(root/'LegacyBackups.swift'),'-o',str(mac/'GRFSLauncher'),'-framework','AppKit','-framework','CryptoKit','-module-cache-path','/private/tmp/grfs-swift-cache'],check=True)
+subprocess.run(['swiftc',str(root/'main.swift'),str(root/'Launcher.swift'),str(root/'Updater.swift'),str(root/'LauncherTheme.swift'),str(root/'LegacyBackups.swift'),str(root/'RestartRequest.swift'),'-o',str(mac/'GRFSLauncher'),'-framework','AppKit','-framework','CryptoKit','-module-cache-path','/private/tmp/grfs-swift-cache'],check=True)
 for name in ['grfs','librexruntime.dylib','librexgpu-xenos.dylib','libgrfs_AICLASS_X360_F.dylib','libTracyClient.dylib']:
     shutil.copy2(base/name,runtime/name)
 if os.environ.get('GRFS_GPU_FILE'):
@@ -50,6 +50,6 @@ archive.unlink(missing_ok=True)
 subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(app),str(archive)],check=True)
 digest=hashlib.sha256(archive.read_bytes()).hexdigest()
 (output/'SHA256SUMS.txt').write_text(digest+'  '+archive.name+'\n')
-payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Detaches hidden PC settings to avoid continuous UI redraws. Adds an optional F5 performance HUD showing game swap requests and frame intervals, not UI FPS. Preserves the v0.10.0.6 GPU/runtime, mip0, synchronous shaders, native fullscreen, Game Mode, controls and saves. M3 gameplay gains still require an owner comparison.')
+payload=dict(version=version['version'],build=version['build'],minimumSystem=version['minimumSystem'],url='https://github.com/alex-stampede/GRFS-Recomp/releases/download/'+version['tag']+'/'+archive.name,sha256=digest,size=archive.stat().st_size,notes='Adds an F5 output resolution limit (720p, 900p, 1080p or native) with Save and restart. Default 1080p cap preserves aspect ratio and native fullscreen/Game Mode. Keeps mip0, synchronous shaders, controls, saves and persistent cache. This limits presentation output, not Xbox internal rendering. No guaranteed 30 FPS claim.')
 (output/'update-payload.json').write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
 print(app)

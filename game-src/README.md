@@ -75,3 +75,15 @@ mouse-transparent AppKit view and a 4 Hz timer, not a persistent ImGui dialog.
 It counts requests, not GPU-completed frames or unique displayed images. It writes
 no trace files unless the local diagnostic `GRFS_HUD_TRACE` environment flag is
 explicitly set. The normal launcher disables the inherited Apple HUD.
+
+## v0.10.0.8: output cap and restart
+
+Apply `patches/macos-output-resolution.patch` to the SDK and rebuild the runtime.
+The F5 cap is snapshotted on first surface query, after configuration loading,
+and applied only on restart. Save and restart calls the app's deferred window-close
+request after atomically writing a per-launch request supplied by the launcher.
+The launcher relaunches only for a matching token and exit status zero.
+Original savedata, cache, mip0 and synchronous shader handling are retained.
+The isolated build procedure in `performance/output-resolution-20261023/build_runtime.py`
+was used locally to replace only the surface and application entry objects;
+its unmodified runtime relink matched the protected v7 binary byte-for-byte.

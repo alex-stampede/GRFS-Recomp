@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0.8 — October 23, 2026
+
+- Add an F5 Fullscreen / Windowed selector, applied on restart.
+- Add F5 output resolution limits: 720p, 900p, 1080p (default) and Native, retaining native fullscreen and aspect ratio.
+- Add Save and restart: persist settings, use the established window-close path, and relaunch through the existing launcher.
+- Accept only a matching one-use restart request from a child that exits successfully; normal exits and crashes do not loop.
+- Keep mip0, the validated GPU library, synchronous shaders, installer, savedata and persistent cache. This changes presentation dimensions, not Xbox internal rendering.
+
 ## 0.10.0.7 — October 22, 2026
 
 - Detach the PC Settings dialog while native Options is closed, avoiding continuous empty UI redraws.

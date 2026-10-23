@@ -19,6 +19,7 @@ inline std::atomic<bool> panel_open{false};
 inline std::atomic<bool> restore_mouse{false};
 // Installed on startup; notifications queue attachment changes on the UI thread.
 inline std::function<void()> visibility_changed;
+inline std::function<bool()> restart_game;
 inline std::mutex visibility_mutex;
 inline void NotifyVisibility() {
   std::lock_guard<std::mutex> lock(visibility_mutex);
@@ -108,7 +109,7 @@ class Dialog final : public rex::ui::ImGuiDialog {
   void Set(const char* name, const std::string& value) {
     if (rex::cvar::SetFlagByName(name, value)) { dirty_ = true; message_.clear(); }
   }
-  void Save() {
+  bool Save() {
     auto temporary = config_; temporary += ".tmp";
     try {
       std::ofstream file;
@@ -119,10 +120,12 @@ class Dialog final : public rex::ui::ImGuiDialog {
       std::filesystem::rename(temporary, config_);
       dirty_ = false;
       message_ = Text("Settings saved.", "Ajustes guardados.");
+      return true;
     } catch (const std::exception&) {
       std::error_code ec; std::filesystem::remove(temporary, ec);
       message_ = Text("Could not save settings. Please try again.",
                       "No se pudieron guardar los ajustes. Intenta de nuevo.");
+      return false;
     }
   }
   static std::string KeyName(ImGuiKey key) {
@@ -202,6 +205,20 @@ class Dialog final : public rex::ui::ImGuiDialog {
     ImGui::TextWrapped("%s", Text("Audio and subtitles: use the original game options.",
                                   "Audio y subtitulos: usa las opciones originales del juego."));
     ImGui::Separator();
+    const char* display_modes[] = {Text("Fullscreen", "Pantalla completa"), Text("Windowed", "Ventana")};
+    int display_mode = rex::cvar::GetFlagByName("fullscreen") == "true" ? 0 : 1;
+    if (ImGui::Combo(Text("Display mode", "Modo de pantalla"), &display_mode, display_modes, 2))
+      Set("fullscreen", display_mode == 0 ? "true" : "false");
+    const char* resolutions[] = {"1280 x 720", "1600 x 900", "1920 x 1080", "Native / Nativa"};
+    const char* resolution_ids[] = {"720", "900", "1080", "native"};
+    auto resolution = rex::cvar::GetFlagByName("grfs_output_resolution");
+    int resolution_choice = resolution == "720" ? 0 : resolution == "900" ? 1 : resolution == "1080" ? 2 : 3;
+    if (ImGui::Combo(Text("Output resolution limit", "Limite de resolucion de salida"),
+                     &resolution_choice, resolutions, 4))
+      Set("grfs_output_resolution", resolution_ids[resolution_choice]);
+    ImGui::TextWrapped("%s", Text("Save and restart to apply. Works in native fullscreen. Preserves aspect ratio; does not change Xbox internal resolution.",
+      "Guarda y reinicia para aplicar. Funciona en pantalla completa nativa. Conserva la proporcion; no cambia la resolucion interna de Xbox."));
+    ImGui::Separator();
     bool hud = rex::cvar::GetFlagByName("grfs_performance_hud") == "true";
     if (ImGui::Checkbox(Text("Performance HUD", "HUD de rendimiento"), &hud)) {
       Set("grfs_performance_hud", hud ? "true" : "false");
@@ -265,6 +282,12 @@ class Dialog final : public rex::ui::ImGuiDialog {
     ImGui::EndChild();
     if (ImGui::Button(Text("Save settings", "Guardar ajustes"))) Save();
     ImGui::SameLine();
+    if (ImGui::Button(Text("Save and restart", "Guardar y reiniciar")) && Save()) {
+      if (!restart_game || !restart_game())
+        message_ = Text("Could not restart. Settings saved; close and reopen the launcher.",
+                        "No se pudo reiniciar. Ajustes guardados; cierra y vuelve a abrir el launcher.");
+    }
+    ImGui::SameLine();
     if (ImGui::Button(Text("Back to game options", "Volver a opciones"))) visible = false;
     if (dirty_) { ImGui::SameLine(); ImGui::TextUnformatted(Text("Unsaved changes", "Cambios sin guardar")); }
     if (!message_.empty()) ImGui::TextWrapped("%s", message_.c_str());
@@ -273,6 +296,9 @@ class Dialog final : public rex::ui::ImGuiDialog {
   }
 };
 }  // namespace grfs::options
+
+REXCVAR_DEFINE_STRING(grfs_output_resolution, "1080", "GRFS/Display",
+                     "Output size limit: 720, 900, 1080 or native; restart required");
 
 REXCVAR_DEFINE_BOOL(grfs_performance_hud, false, "GRFS/Performance",
                    "Show guest swap rate and frame intervals; excludes UI redraws");
