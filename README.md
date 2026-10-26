@@ -19,6 +19,7 @@
   <a href="#getting-started">Getting started</a> ·
   <a href="#project-status">Project status</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="#support-the-project">Support the project</a> ·
   <a href="https://github.com/alex-stampede/GRFS-Recomp/issues/new/choose">Report an issue</a>
 </p>
 
@@ -275,6 +276,16 @@ Set `GRFS_RUNTIME_DIR` to that directory and run `python3 launcher/build.py`. Yo
 The source repository excludes ISOs, extracted game files, saves, signing keys, compiled runtime libraries, and generated game code. See [launcher development notes](launcher/README.md) for the verification tests.
 
 </details>
+
+## Support the project
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-Support_the_project-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/elchristian)
+
+If you enjoy GRFS-Recomp, you can help support its development through **[Buy Me a Coffee](https://buymeacoffee.com/elchristian)**.
+
+Your support helps me dedicate more time to improving performance, fixing graphical issues, and making installation and updates easier. It also supports research into future recompilation projects, including **Ghost Recon Advanced Warfighter 1 and 2**.
+
+Future projects are exploratory and depend on technical feasibility. Donations are optional, and this project will remain available regardless of whether you contribute. Thank you for supporting the work and helping bring these games to modern Macs!
 
 ## Credits
 
