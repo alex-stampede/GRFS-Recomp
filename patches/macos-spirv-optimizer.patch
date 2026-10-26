@@ -1,0 +1,83 @@
+--- a/src/graphics/vulkan/shader.cpp
++++ b/src/graphics/vulkan/shader.cpp
+@@ -13,6 +13,9 @@
+ #include <cstdlib>
+ #include <filesystem>
+ #include <fstream>
++#include <chrono>
++#include <cstring>
++#include <spirv-tools/optimizer.hpp>
+ 
+ #include <rex/assert.h>
+ #include <rex/graphics/vulkan/shader.h>
+@@ -62,6 +65,43 @@
+   shader_module_create_info.flags = 0;
+   shader_module_create_info.codeSize = translated_binary().size();
+   shader_module_create_info.pCode = reinterpret_cast<const uint32_t*>(translated_binary().data());
++  std::vector<uint32_t> optimized;
++  if (std::getenv("GRFS_SPIRV_OPTIMIZE") && !std::strcmp(std::getenv("GRFS_SPIRV_OPTIMIZE"), "1")) {
++    const auto start = std::chrono::steady_clock::now();
++    spvtools::Optimizer optimizer(SPV_ENV_VULKAN_1_2);
++    optimizer.SetMessageConsumer([](spv_message_level_t, const char*, const spv_position_t&, const char* message) {
++      REXGPU_WARN("[GRFS SPIRV OPT] {}", message);
++    });
++    optimizer.RegisterPerformancePasses(true); // Preserve stage interfaces.
++    spvtools::ValidatorOptions validation_options;
++    validation_options.SetScalarBlockLayout(vulkan_device->properties().scalarBlockLayout);
++    validation_options.SetUniformBufferStandardLayout(vulkan_device->properties().uniformBufferStandardLayout);
++    spvtools::OptimizerOptions options;
++    options.set_validator_options(validation_options);
++    options.set_preserve_bindings(true);
++    options.set_preserve_spec_constants(true);
++    const bool ok = optimizer.Run(shader_module_create_info.pCode,
++        shader_module_create_info.codeSize / sizeof(uint32_t), &optimized, options);
++    if (ok && !optimized.empty()) {
++      spvtools::SpirvTools validator(SPV_ENV_VULKAN_1_2);
++      if (validator.Validate(optimized.data(), optimized.size(), validation_options)) {
++        shader_module_create_info.codeSize = optimized.size() * sizeof(uint32_t);
++        shader_module_create_info.pCode = optimized.data();
++        if (const char* directory = std::getenv("GRFS_SPIRV_OPT_DUMP")) {
++          std::error_code error;
++          std::filesystem::create_directories(directory, error);
++          if (!error) {
++            std::ofstream f(std::filesystem::path(directory) / fmt::format("{:016X}-{:016X}.spv", shader().ucode_data_hash(), modification()), std::ios::binary);
++            f.write(reinterpret_cast<const char*>(optimized.data()), shader_module_create_info.codeSize);
++          }
++        }
++        REXGPU_INFO("[GRFS SPIRV OPT] hash={:016X} mod={:016X} bytes={} -> {} ms={:.2f}",
++            shader().ucode_data_hash(), modification(), translated_binary().size(),
++            shader_module_create_info.codeSize, std::chrono::duration<double,std::milli>(
++              std::chrono::steady_clock::now()-start).count());
++      } else REXGPU_WARN("[GRFS SPIRV OPT] validation failed; original module retained");
++    } else REXGPU_WARN("[GRFS SPIRV OPT] optimization failed; original module retained");
++  }
+   if (vulkan_device->functions().vkCreateShaderModule(vulkan_device->device(),
+                                                       &shader_module_create_info, nullptr,
+                                                       &shader_module_) != VK_SUCCESS) {
+--- a/thirdparty/CMakeLists.txt
++++ b/thirdparty/CMakeLists.txt
+@@ -326,6 +326,13 @@
+     target_include_directories(spirv-tools-headers SYSTEM INTERFACE
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/spirv-tools/include>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
++
++    # GRFS: optimize translated modules before backend pipeline compilation.
++    set(SPIRV_SKIP_TESTS ON CACHE BOOL "" FORCE)
++    set(SPIRV_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)
++    set(SPIRV_TOOLS_BUILD_STATIC ON CACHE BOOL "" FORCE)
++    set(SPIRV-Headers_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/spirv-headers")
++    add_subdirectory(spirv-tools)
+ 
+     # glslang/SPIRV - SPIR-V code generation for shader translation
+     set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
+--- a/src/graphics/CMakeLists.txt
++++ b/src/graphics/CMakeLists.txt
+@@ -140,6 +140,8 @@
+ 
+ if(REXGLUE_USE_VULKAN)
+     target_link_libraries(rexgpu-xenos PRIVATE
++        SPIRV-Tools-opt
++        SPIRV-Tools-static
+         Vulkan::Headers
+         glslang::SPIRV
+         GPUOpen::VulkanMemoryAllocator

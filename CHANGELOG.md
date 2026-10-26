@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0.9 — October 26, 2026
+
+- Optimize translated SPIR-V before MoltenVK pipeline creation, preserving precision and shader interfaces with validated fallback.
+- Prepare optimized variants from known pipeline records at startup; retain persistent shader storage. Unseen shaders can still stall on first use.
+- Acquire the Metal drawable outside the shared Vulkan queue lock while retaining synchronous submission.
+- Warm M4 Pro comparison:22.26→24.24guestrequests/s,44.92→41.26ms,p9547.68→44.18ms. M3 improvement remains unmeasured.
+- Preserve mip0,MSAA,F5,fullscreen/Game Mode,controls,saves and installer.
+
 ## 0.10.0.8 — October 23, 2026
 
 - Add an F5 Fullscreen / Windowed selector, applied on restart.

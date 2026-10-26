@@ -1,0 +1,86 @@
+--- a/src/ui/vulkan/vulkan_presenter.cpp
++++ b/src/ui/vulkan/vulkan_presenter.cpp
+@@ -10,6 +10,10 @@
+  */
+ 
+ #include <algorithm>
++#include <dlfcn.h>
++#include <mach-o/dyld.h>
++#include <chrono>
++#include <cstdlib>
+ #include <atomic>
+ #include <cstddef>
+ #include <cstdint>
+@@ -1578,11 +1582,23 @@
+   // vkResetCommandPool resets from both initial and recording states, still
+   // safe to return early from this function in case of an error.
+ 
++  struct EagerAcquireFence {
++    VkDevice device;
++    PFN_vkDestroyFence destroy;
++    VkFence fence = VK_NULL_HANDLE;
++    ~EagerAcquireFence() { if (fence) destroy(device, fence, nullptr); }
++  } eager_fence{device, dfn.vkDestroyFence};
++  if (std::getenv("GRFS_EAGER_DRAWABLE")) {
++    VkFenceCreateInfo info{};
++    info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
++    if (dfn.vkCreateFence(device, &info, nullptr, &eager_fence.fence) != VK_SUCCESS)
++      return PaintResult::kNotPresented;
++  }
+   VkSemaphore acquire_semaphore = paint_submission.acquire_semaphore();
+   uint32_t swapchain_image_index;
+   VkResult acquire_result =
+       dfn.vkAcquireNextImageKHR(device, paint_context_.swapchain, UINT64_MAX, acquire_semaphore,
+-                                VK_NULL_HANDLE, &swapchain_image_index);
++                                eager_fence.fence, &swapchain_image_index);
+   switch (acquire_result) {
+     case VK_SUCCESS:
+     case VK_SUBOPTIMAL_KHR:
+@@ -1604,6 +1620,47 @@
+     default:
+       REXLOG_ERROR("VulkanPresenter: Failed to acquire the swapchain image");
+       return PaintResult::kNotPresented;
++  }
++
++  if (eager_fence.fence &&
++      dfn.vkWaitForFences(device, 1, &eager_fence.fence, VK_TRUE, UINT64_MAX) != VK_SUCCESS)
++    return PaintResult::kNotPresentedConnectionOutdated;
++
++  // Diagnostic MoltenVK-only eager drawable acquisition. The image has already
++  // been acquired by Vulkan; fetch its native texture before queue submission.
++  // No command ordering, queue locking, or resource lifetime rules are changed.
++  if (std::getenv("GRFS_EAGER_DRAWABLE")) {
++    using GetTexture = void (*)(VkImage, void**);
++    static auto get_texture = []() -> GetTexture {
++      for (uint32_t i = 0; i < _dyld_image_count(); ++i) {
++        const char* name = _dyld_get_image_name(i);
++        if (name && std::strstr(name, "/libMoltenVK.dylib")) {
++          void* library = dlopen(name, RTLD_LAZY | RTLD_NOLOAD);
++          auto function = library ? reinterpret_cast<GetTexture>(dlsym(library, "vkGetMTLTextureMVK")) : nullptr;
++          if (library) dlclose(library);
++          return function;
++        }
++      }
++      return nullptr;
++    }();
++    static bool announced = false;
++    if (!announced) {
++      REXLOG_INFO("GRFS eager drawable native entry point: {}", get_texture ? "available" : "unavailable");
++      announced = true;
++    }
++    if (get_texture) {
++      void* texture = nullptr;
++      const auto started = std::chrono::steady_clock::now();
++      get_texture(paint_context_.swapchain_images[swapchain_image_index], &texture);
++      static double total_ms = 0.0;
++      static unsigned count = 0;
++      total_ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
++      if (++count == 120) {
++        REXLOG_INFO("GRFS eager drawable: average wait outside queue lock {} ms", total_ms / count);
++        count = 0; total_ms = 0.0;
++      }
++      if (!texture) return PaintResult::kNotPresentedConnectionOutdated;
++    }
+   }
+ 
+   // Non-zero extents needed for both the viewport (width must not be zero) and

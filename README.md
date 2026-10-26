@@ -44,6 +44,27 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
+## Shader optimization — v0.10.0.9
+
+Translated shaders now pass through the Khronos SPIRV-Tools performance optimizer
+before MoltenVK builds the pipeline. Shader bindings, stage interfaces and precision
+rules are preserved; invalid optimizer output falls back to the original module.
+Existing cached pipeline records prepare optimized variants during startup. New
+effects can still compile during gameplay, and the first optimized run can pause.
+
+A warm-cache comparison in one process on **Mac mini M4 Pro, 24 GB** measured
+**22.26 → 24.24 game requests/s**, **44.92 → 41.26 ms** mean interval and
+**47.68 → 44.18 ms p95** at the same owner-selected scene. That is about **9% higher
+request throughput**, not a unique displayed-FPS measurement or a guarantee of 30 FPS.
+The owner reported unchanged image quality. The corresponding M3 gain remains to be measured.
+
+The normal-vision/NVG comparison confirms a different shader workload and GPU-bound
+execution; this optimization reduces translation overhead without removing normal
+lighting or materials. Mip0, MSAA and synchronous compilation remain enabled.
+Metal drawable acquisition also runs outside the Vulkan queue lock, retaining
+synchronous command submission. Experimental async submission, mip changes,
+alpha specialization and bounded render areas are excluded.
+
 ## Resolution and restart — v0.10.0.8
 
 Open **Extras → Options → F5**, choose **Fullscreen / Windowed** and an **Output resolution limit**, then

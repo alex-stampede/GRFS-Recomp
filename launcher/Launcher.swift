@@ -237,7 +237,11 @@ final class Launcher: NSObject, NSApplicationDelegate {
             // macOS Game Mode requires native fullscreen Spaces, not a borderless window.
             env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
-            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.0"
+            // Optimize modules before MoltenVK compiles the cached pipelines during startup.
+            if env["GRFS_SPIRV_OPTIMIZE"] == nil { env["GRFS_SPIRV_OPTIMIZE"] = "1" }
+            env["GRFS_EAGER_DRAWABLE"] = "1"
+            env["MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"] = "1"
+            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.9"
             // The GRFS HUD is opt-in in F5 and counts guest swap requests.
             // Do not inherit Apple's presentation/UI FPS HUD as game FPS.
             env["MTL_HUD_ENABLED"] = "0"
