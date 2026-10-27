@@ -217,31 +217,27 @@ final class Launcher: NSObject, NSApplicationDelegate {
         guard child == nil else { return }
         do {
             let runtime = Bundle.main.resourceURL!.appendingPathComponent("Game.app/Contents/MacOS")
-            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("CachePersistent"), logs = home.appendingPathComponent("Logs")
+            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("CacheTextureExponentV1"), logs = home.appendingPathComponent("Logs")
             for path in [user,cache,logs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
-            // Keep the fixed cache away from older releases that can truncate storage.
-            let shaders = cache.appendingPathComponent("shaders")
-            if !fm.fileExists(atPath:shaders.path) {
-                let candidates = ["CacheGameModeTest", "Cache"].map { home.appendingPathComponent($0+"/shaders") }
-                if let source = candidates.first(where: { fm.fileExists(atPath:$0.path) }) {
-                    let stage = cache.appendingPathComponent(".shaders-import-"+UUID().uuidString)
-                    do { try fm.copyItem(at:source,to:stage); try fm.moveItem(at:stage,to:shaders) }
-                    catch { try? fm.removeItem(at:stage); throw error }
-                }
-            }
+            // Separate shader-semantics namespace; retain previous caches untouched.
+            // Do not import old pipeline descriptions into this corrected path.
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime
-            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--log_level=info"]
+            // Match the M3-tested path: on-demand pipelines, bounded draw extents.
+            // Keep synchronous gameplay compilation and persistent shader storage.
+            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--vulkan_pipeline_creation_threads=1","--execute_unclipped_draw_vs_on_cpu=true","--log_level=info"]
             let restart = RestartRequest(directory: logs)
             var env = ProcessInfo.processInfo.environment
             env.merge(restart.environment) { _, new in new }
             // macOS Game Mode requires native fullscreen Spaces, not a borderless window.
             env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
-            // Optimize modules before MoltenVK compiles the cached pipelines during startup.
+            // Optimize translated modules; avoid the problematic stored-pipeline preload.
             if env["GRFS_SPIRV_OPTIMIZE"] == nil { env["GRFS_SPIRV_OPTIMIZE"] = "1" }
-            env["GRFS_EAGER_DRAWABLE"] = "1"
+            env["GRFS_SKIP_PIPELINE_PRELOAD"] = "1"
+            // Presence enables eager acquisition, even for a value of "0".
+            env.removeValue(forKey: "GRFS_EAGER_DRAWABLE")
             env["MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"] = "1"
-            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.9"
+            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.10"
             // The GRFS HUD is opt-in in F5 and counts guest swap requests.
             // Do not inherit Apple's presentation/UI FPS HUD as game FPS.
             env["MTL_HUD_ENABLED"] = "0"

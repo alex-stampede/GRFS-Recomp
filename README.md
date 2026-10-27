@@ -45,26 +45,25 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
-## Shader optimization — v0.10.0.9
+## Graphics stability — v0.10.0.10
 
-Translated shaders now pass through the Khronos SPIRV-Tools performance optimizer
-before MoltenVK builds the pipeline. Shader bindings, stage interfaces and precision
-rules are preserved; invalid optimizer output falls back to the original module.
-Existing cached pipeline records prepare optimized variants during startup. New
-effects can still compile during gameplay, and the first optimized run can pause.
+This release corrects texture color exponent decoding and enables unclipped draw
+extent estimation to avoid excessive EDRAM transfer regions. The M3 owner verified
+Gunsmith, campaign and Guerrilla across repeat openings with correct visuals and
+reported smoother play. Disabling extent estimation reproduced geometry corruption;
+restoring it removed the observed corruption. No controlled FPS improvement is claimed.
 
-A warm-cache comparison in one process on **Mac mini M4 Pro, 24 GB** measured
-**22.26 → 24.24 game requests/s**, **44.92 → 41.26 ms** mean interval and
-**47.68 → 44.18 ms p95** at the same owner-selected scene. That is about **9% higher
-request throughput**, not a unique displayed-FPS measurement or a guarantee of 30 FPS.
-The owner reported unchanged image quality. The corresponding M3 gain remains to be measured.
+SPIRV-Tools optimization remains enabled with validated fallback and preserved
+precision/interfaces. Stored pipeline preload is bypassed while Xenos shader storage
+and in-process pipeline reuse remain active. Pipelines are created on demand;
+first-use compilation can still cause hitches. Experimental eager Metal drawable
+acquisition is disabled; queue submission and shader compilation remain synchronous.
 
-The normal-vision/NVG comparison confirms a different shader workload and GPU-bound
-execution; this optimization reduces translation overhead without removing normal
-lighting or materials. Mip0, MSAA and synchronous compilation remain enabled.
-Metal drawable acquisition also runs outside the Vulkan queue lock, retaining
-synchronous command submission. Experimental async submission, mip changes,
-alpha specialization and bounded render areas are excluded.
+The new `CacheTextureExponentV1` namespace does not import older pipeline records.
+Earlier caches and save data are preserved. Mip0, MSAA, F5 settings, controls,
+native fullscreen/Game Mode and the installer remain in place.
+
+The owner validated the final packaged app on MacBook Air M3 and approved release.
 
 ## Resolution and restart — v0.10.0.8
 
@@ -235,12 +234,13 @@ All persistent data lives under:
 | :--- | :--- |
 | `Game/` | Extracted game files |
 | `UserData/` | Profile and save data |
-| `Cache/` | Known shaders and pipeline descriptions |
+| `CacheTextureExponentV1/` | Current Xenos shader storage; pipelines created on demand |
+| `Cache/`, `CachePersistent/` | Earlier caches, retained without deletion |
 | `Logs/` | Game and console logs |
 | `Updates/` | Downloaded and staged app updates |
 | `Backups/` | One previous app version, kept outside Applications |
 
-**Shader storage is not a complete precompiled shader pack.** The runtime loads known shaders and pipelines, but new scenes may still trigger compilation, and some work can recur at startup. Installation reaching 100% does not mean every shader is compiled. Saves from earlier development prototypes are not automatically migrated.
+**Shader storage is not a complete precompiled shader pack.** The runtime retains guest shader microcode but builds pipelines on demand; new scenes and later sessions may still trigger compilation. Installation reaching 100% does not mean every shader is compiled. Saves from earlier development prototypes are not automatically migrated.
 
 ## Known issues
 

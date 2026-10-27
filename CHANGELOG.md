@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0.10 — October 27, 2026
+
+- Correct texture color exponent decoding: use signed bits 13:18 of fetch word 3, independently of LOD bias in word 4.
+- Enable unclipped draw extent estimation. M3 extentOn → extentOff → extentOn validation associated disabled estimation with Gunsmith geometry corruption.
+- Bypass stored pipeline preload and pipeline-record append; retain Xenos shader storage, SPIR-V optimization and in-process pipeline caching.
+- Use a separate CacheTextureExponentV1 namespace, preserving earlier caches and all save data.
+- Keep synchronous shader compilation and queue submissions; disable experimental eager drawable acquisition.
+- Owner reports smoother M3 play and clean Gunsmith/campaign/Guerrilla in the tested configuration. No controlled frame-rate improvement is claimed; first-use compilation remains.
+- Owner validated the final packaged app on M3 and approved publication.
+
 ## 0.10.0.9 — October 26, 2026
 
 - Optimize translated SPIR-V before MoltenVK pipeline creation, preserving precision and shader interfaces with validated fallback.

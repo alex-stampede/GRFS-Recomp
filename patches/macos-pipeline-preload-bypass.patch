@@ -1,0 +1,40 @@
+--- a/src/graphics/vulkan/pipeline_cache.cpp
++++ b/src/graphics/vulkan/pipeline_cache.cpp
+@@ -572,6 +572,17 @@
+            shader_storage_file_);
+   }
+ 
++  // Retain the on-disk records, but translate/create pipelines on first use.
++  // M3 cold runs were correct; cached preload reproduced geometry corruption.
++  const bool skip_pipeline_preload =
++      std::getenv("GRFS_SKIP_PIPELINE_PRELOAD") &&
++      !std::strcmp(std::getenv("GRFS_SKIP_PIPELINE_PRELOAD"), "1");
++  if (skip_pipeline_preload) {
++    REXGPU_INFO("[GRFS PIPELINE PRELOAD] bypassing {} stored pipelines; Xenos shaders retained",
++                pipeline_stored_descriptions.size());
++    shader_translations_needed.clear();
++  }
++
+   // Translate shader modifications needed for stored pipelines.
+   for (const std::pair<uint64_t, uint64_t>& translation_needed : shader_translations_needed) {
+     auto shader_it = shaders_.find(translation_needed.first);
+@@ -598,6 +609,7 @@
+   pipeline_creations.reserve(pipeline_stored_descriptions.size());
+   for (const PipelineStoredDescription& pipeline_stored_description :
+        pipeline_stored_descriptions) {
++    if (skip_pipeline_preload) break;
+     const PipelineDescription& pipeline_description = pipeline_stored_description.description;
+ 
+     auto find_it = pipelines_.find(pipeline_description);
+@@ -1206,7 +1218,10 @@
+     pipeline.second.is_placeholder.store(false, std::memory_order_release);
+   }
+ 
+-  if (pipeline_storage_file_) {
++  // Avoid appending duplicate pipeline descriptions while preload is bypassed.
++  // Xenos microcode storage and in-process pipeline caching remain enabled.
++  const char* skip_preload = std::getenv("GRFS_SKIP_PIPELINE_PRELOAD");
++  if (pipeline_storage_file_ && !(skip_preload && !std::strcmp(skip_preload, "1"))) {
+     assert_not_null(storage_write_thread_);
+     pipeline_storage_file_flush_needed_ = true;
+     {

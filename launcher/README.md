@@ -53,3 +53,7 @@ must be in the executable; the SDK runtime/GPU remain the protected v0.10.0.6
 versions. `build.py` compiles the title shim and `PerformanceHUD.mm` as Objective-C++.
 Keep its exported HUD bridge symbols; the game resolves them at runtime. The HUD
 is disabled by default, opt-in in F5, and persists via `UserData/grfs.toml`.
+
+### v0.10.0.10 packaging
+
+Apply macos-texture-exp-adjust.patch and macos-pipeline-preload-bypass.patch in addition to the retained v9 optimizer patch. Pass the resulting GPU via GRFS_GPU_FILE and preserve the other v9 runtime files. Launcher enables execute_unclipped_draw_vs_on_cpu, disables eager drawable acquisition, and bypasses stored pipeline preload. CacheTextureExponentV1 is separate from old caches; no legacy shader/pipeline import occurs. Saves and installed Game are unchanged. Owner checks are recorded in docs/validation-texture-edram-20261027.md; the owner accepted the final package on M3 and approved publication.
