@@ -1,0 +1,423 @@
+--- a/src/graphics/vulkan/render_target_cache.cpp
++++ b/src/graphics/vulkan/render_target_cache.cpp
+@@ -10,6 +10,9 @@
+  */
+ 
+ #include <algorithm>
++#include <mach/mach_time.h>
++#include <cstdio>
++#include "ClearPairGuard.h"
+ #include <array>
+ #include <cstddef>
+ #include <cstdint>
+@@ -4574,6 +4577,132 @@
+     resolve_clear_rect.layerCount = 1;
+   }
+ 
++  auto make_clear_attachment = [this](RenderTargetKey dest_rt_key, uint64_t clear_value) {
++    VkClearAttachment resolve_clear_attachment;
++    resolve_clear_attachment.colorAttachment = 0;
++    std::memset(&resolve_clear_attachment.clearValue, 0,
++                sizeof(resolve_clear_attachment.clearValue));
++    if (dest_rt_key.is_depth) {
++      resolve_clear_attachment.aspectMask =
++          VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
++      uint32_t depth_guest_clear_value = (uint32_t(clear_value) >> 8) & 0xFFFFFF;
++      switch (dest_rt_key.GetDepthFormat()) {
++        case xenos::DepthRenderTargetFormat::kD24S8:
++          resolve_clear_attachment.clearValue.depthStencil.depth =
++              xenos::UNorm24To32(depth_guest_clear_value);
++          break;
++        case xenos::DepthRenderTargetFormat::kD24FS8:
++          // Taking [0, 2) -> [0, 1) remapping into account.
++          resolve_clear_attachment.clearValue.depthStencil.depth =
++              xenos::Float20e4To32(depth_guest_clear_value) * 0.5f;
++          break;
++      }
++      resolve_clear_attachment.clearValue.depthStencil.stencil = uint32_t(clear_value) & 0xFF;
++    } else {
++      resolve_clear_attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++      bool dest_color_transfer_is_uint = false;
++      GetColorOwnershipTransferVulkanFormat(
++          dest_rt_key.GetColorFormat(), dest_rt_key.msaa_samples, &dest_color_transfer_is_uint);
++      switch (dest_rt_key.GetColorFormat()) {
++        case xenos::ColorRenderTargetFormat::k_8_8_8_8:
++        case xenos::ColorRenderTargetFormat::k_8_8_8_8_GAMMA: {
++          for (uint32_t j = 0; j < 4; ++j) {
++            resolve_clear_attachment.clearValue.color.float32[j] =
++                ((clear_value >> (j * 8)) & 0xFF) * (1.0f / 0xFF);
++          }
++          if (dest_rt_key.GetColorFormat() == xenos::ColorRenderTargetFormat::k_8_8_8_8_GAMMA &&
++              gamma_render_target_as_unorm16_) {
++            // 8_8_8_8_GAMMA is represented by linear stored in
++            // R16G16B16A16_UNORM.
++            for (uint32_t j = 0; j < 3; ++j) {
++              resolve_clear_attachment.clearValue.color.float32[j] =
++                  xenos::PWLGammaToLinear(resolve_clear_attachment.clearValue.color.float32[j]);
++            }
++          }
++        } break;
++        case xenos::ColorRenderTargetFormat::k_2_10_10_10:
++        case xenos::ColorRenderTargetFormat::k_2_10_10_10_AS_10_10_10_10: {
++          for (uint32_t j = 0; j < 3; ++j) {
++            resolve_clear_attachment.clearValue.color.float32[j] =
++                ((clear_value >> (j * 10)) & 0x3FF) * (1.0f / 0x3FF);
++          }
++          resolve_clear_attachment.clearValue.color.float32[3] =
++              ((clear_value >> 30) & 0x3) * (1.0f / 0x3);
++        } break;
++        case xenos::ColorRenderTargetFormat::k_2_10_10_10_FLOAT:
++        case xenos::ColorRenderTargetFormat::k_2_10_10_10_FLOAT_AS_16_16_16_16: {
++          for (uint32_t j = 0; j < 3; ++j) {
++            resolve_clear_attachment.clearValue.color.float32[j] =
++                xenos::Float7e3To32((clear_value >> (j * 10)) & 0x3FF);
++          }
++          resolve_clear_attachment.clearValue.color.float32[3] =
++              ((clear_value >> 30) & 0x3) * (1.0f / 0x3);
++        } break;
++        case xenos::ColorRenderTargetFormat::k_16_16:
++        case xenos::ColorRenderTargetFormat::k_16_16_FLOAT: {
++          // Using uint for transfers and clears of both. Disregarding the
++          // current -32...32 vs. -1...1 settings for consistency with color
++          // clear via depth aliasing.
++          for (uint32_t j = 0; j < 2; ++j) {
++            uint16_t component = uint16_t((clear_value >> (j * 16)) & 0xFFFF);
++            if (dest_color_transfer_is_uint) {
++              resolve_clear_attachment.clearValue.color.uint32[j] = component;
++            } else if (IsColor16FormatFloatLike(dest_rt_key.GetColorFormat())) {
++              resolve_clear_attachment.clearValue.color.float32[j] =
++                  rex::xenos_half_to_float(component);
++            } else {
++              resolve_clear_attachment.clearValue.color.float32[j] =
++                  std::max(float(int16_t(component)) * (1.0f / 32767.0f), -1.0f);
++            }
++          }
++        } break;
++        case xenos::ColorRenderTargetFormat::k_16_16_16_16:
++        case xenos::ColorRenderTargetFormat::k_16_16_16_16_FLOAT: {
++          // Using uint for transfers and clears of both. Disregarding the
++          // current -32...32 vs. -1...1 settings for consistency with color
++          // clear via depth aliasing.
++          for (uint32_t j = 0; j < 4; ++j) {
++            uint16_t component = uint16_t((clear_value >> (j * 16)) & 0xFFFF);
++            if (dest_color_transfer_is_uint) {
++              resolve_clear_attachment.clearValue.color.uint32[j] = component;
++            } else if (IsColor16FormatFloatLike(dest_rt_key.GetColorFormat())) {
++              resolve_clear_attachment.clearValue.color.float32[j] =
++                  rex::xenos_half_to_float(component);
++            } else {
++              resolve_clear_attachment.clearValue.color.float32[j] =
++                  std::max(float(int16_t(component)) * (1.0f / 32767.0f), -1.0f);
++            }
++          }
++        } break;
++        case xenos::ColorRenderTargetFormat::k_32_FLOAT: {
++          uint32_t component = uint32_t(clear_value);
++          if (dest_color_transfer_is_uint) {
++            // Using uint for proper denormal and NaN handling.
++            resolve_clear_attachment.clearValue.color.uint32[0] = component;
++          } else {
++            std::memcpy(&resolve_clear_attachment.clearValue.color.float32[0], &component,
++                        sizeof(component));
++          }
++        } break;
++        case xenos::ColorRenderTargetFormat::k_32_32_FLOAT: {
++          uint32_t component_0 = uint32_t(clear_value);
++          uint32_t component_1 = uint32_t(clear_value >> 32);
++          if (dest_color_transfer_is_uint) {
++            // Using uint for proper denormal and NaN handling.
++            resolve_clear_attachment.clearValue.color.uint32[0] = component_0;
++            resolve_clear_attachment.clearValue.color.uint32[1] = component_1;
++          } else {
++            std::memcpy(&resolve_clear_attachment.clearValue.color.float32[0], &component_0,
++                        sizeof(component_0));
++            std::memcpy(&resolve_clear_attachment.clearValue.color.float32[1], &component_1,
++                        sizeof(component_1));
++          }
++        } break;
++      }
++    }
++    return resolve_clear_attachment;
++  };
++
+   // Do host depth storing for the depth destination (assuming there can be only
+   // one depth destination) where depth destination == host depth source.
+   bool host_depth_store_set_up = false;
+@@ -4754,6 +4883,87 @@
+   if (host_depth_store_set_up) {
+     // Will be reading copied host depth from the EDRAM buffer.
+     UseEdramBuffer(EdramBufferUsage::kFragmentRead);
++  }
++
++  // Diagnostic only: combine independent depth + RGBA8 rectangle clears.
++  // All resource transitions above are retained. No transfer, resolve, draw or
++  // dependency is moved across a clear. All unsupported cases fall through.
++  static const bool grfs_clear_probe = std::getenv("GRFS_CLEAR_PAIR") != nullptr;
++  if (grfs_clear_probe && resolve_clear_needed && render_target_count == 2 &&
++      render_targets[0] && render_targets[1]) {
++    const auto depth_key = render_targets[0]->key();
++    const auto color_key = render_targets[1]->key();
++    const auto& depth_rt = *static_cast<const VulkanRenderTarget*>(render_targets[0]);
++    const auto& color_rt = *static_cast<const VulkanRenderTarget*>(render_targets[1]);
++    const char* enabled = std::getenv("GRFS_CLEAR_PAIR");
++    const bool shape_ok = depth_key.is_depth && !color_key.is_depth &&
++        (color_key.GetColorFormat() == xenos::ColorRenderTargetFormat::k_8_8_8_8 ||
++         color_key.GetColorFormat() == xenos::ColorRenderTargetFormat::k_2_10_10_10) &&
++        (depth_key.GetDepthFormat() == xenos::DepthRenderTargetFormat::kD24S8 ||
++         depth_key.GetDepthFormat() == xenos::DepthRenderTargetFormat::kD24FS8) &&
++        depth_key.pitch_tiles_at_32bpp &&
++        depth_key.pitch_tiles_at_32bpp == color_key.pitch_tiles_at_32bpp &&
++        depth_key.msaa_samples == color_key.msaa_samples &&
++        depth_key.msaa_samples == xenos::MsaaSamples::k2X &&
++        msaa_2x_attachments_supported_ &&
++        depth_rt.image() != color_rt.image();
++    bool independent = false;
++    if (shape_ok) {
++      // Bounding tile intervals, including row gaps: reject overlap and wrap.
++      const auto& q = *resolve_clear_rectangle;
++      independent = grfs_clear_pair::Independent32bpp2x(
++          depth_key.pitch_tiles_at_32bpp,depth_key.base_tiles,color_key.base_tiles,
++          q.x_pixels,q.y_pixels,q.width_pixels,q.height_pixels,
++          xenos::kEdramTileWidthSamples,xenos::kEdramTileHeightSamples,xenos::kEdramTileCount);
++    }
++    const bool eligible = shape_ok && independent && !host_depth_store_set_up &&
++        render_target_transfers[0].empty() && render_target_transfers[1].empty();
++    static uint64_t seen=0, candidates=0, grouped=0;
++    ++seen; candidates += eligible;
++    bool emitted=false;
++    if (eligible && enabled && enabled[0]=='1' && enabled[1]==0) {
++      RenderPassKey key;
++      key.msaa_samples=depth_key.msaa_samples;
++      key.depth_and_color_used=0b11;
++      key.depth_format=depth_key.GetDepthFormat();
++      key.color_0_view_format=color_key.GetColorFormat();
++      key.color_rts_use_transfer_formats=1;
++      VkRenderPass pass=GetHostRenderTargetsRenderPass(key);
++      const RenderTarget* targets[1+xenos::kMaxColorRenderTargets]={};
++      targets[0]=render_targets[0]; targets[1]=render_targets[1];
++      const Framebuffer* framebuffer=pass != VK_NULL_HANDLE ?
++          GetHostRenderTargetsFramebuffer(key,depth_key.pitch_tiles_at_32bpp,targets):nullptr;
++      if(framebuffer && resolve_clear_rect.rect.offset.x>=0 && resolve_clear_rect.rect.offset.y>=0 &&
++         uint64_t(resolve_clear_rect.rect.offset.x)+resolve_clear_rect.rect.extent.width<=framebuffer->host_extent.width &&
++         uint64_t(resolve_clear_rect.rect.offset.y)+resolve_clear_rect.rect.extent.height<=framebuffer->host_extent.height) {
++        VkClearAttachment attachments[2]={
++          make_clear_attachment(depth_key,render_target_resolve_clear_values[0]),
++          make_clear_attachment(color_key,render_target_resolve_clear_values[1])};
++        command_processor_.BeginIndependentClearPair(pass,framebuffer,
++            depth_rt.view_depth_stencil(),color_rt.view_color_transfer());
++        command_buffer.CmdVkClearAttachments(2,attachments,1,&resolve_clear_rect);
++        command_processor_.EndRenderPass();
++        ++grouped; emitted=true;
++      }
++    }
++    if(seen<=3 || (seen%128)==0 || (emitted && grouped<=3)) {
++      REXGPU_INFO("[GRFS CLEAR PAIR] enabled={} seen={} eligible={} grouped={} emitted={}",
++          enabled && enabled[0]=='1',seen,candidates,grouped,emitted);
++    }
++    if (const char* stats_path=std::getenv("GRFS_CLEAR_STATS")) {
++      static double last_stats=0;
++      static mach_timebase_info_data_t tb=[](){mach_timebase_info_data_t t;mach_timebase_info(&t);return t;}();
++      const double now=double(mach_absolute_time())*tb.numer/tb.denom/1e9;
++      if(now-last_stats>=0.5){last_stats=now;
++        if(FILE* f=std::fopen(stats_path,"a")){
++          std::fprintf(f,"{\"host_s\":%.9f,\"enabled\":%d,\"seen\":%llu,\"eligible\":%llu,\"grouped\":%llu}\n",
++              now,enabled && enabled[0]=='1',static_cast<unsigned long long>(seen),
++              static_cast<unsigned long long>(candidates),static_cast<unsigned long long>(grouped));
++          std::fclose(f);
++        }
++      }
++    }
++    if(emitted) return;
+   }
+ 
+   // Perform the transfers and clears.
+@@ -5279,129 +5489,8 @@
+     if (resolve_clear_needed) {
+       command_processor_.SubmitBarriersAndEnterRenderTargetCacheRenderPass(
+           transfer_render_pass, transfer_framebuffer, transfer_dest_view, dest_rt_key.is_depth);
+-      VkClearAttachment resolve_clear_attachment;
+-      resolve_clear_attachment.colorAttachment = 0;
+-      std::memset(&resolve_clear_attachment.clearValue, 0,
+-                  sizeof(resolve_clear_attachment.clearValue));
+-      uint64_t clear_value = render_target_resolve_clear_values[i];
+-      if (dest_rt_key.is_depth) {
+-        resolve_clear_attachment.aspectMask =
+-            VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+-        uint32_t depth_guest_clear_value = (uint32_t(clear_value) >> 8) & 0xFFFFFF;
+-        switch (dest_rt_key.GetDepthFormat()) {
+-          case xenos::DepthRenderTargetFormat::kD24S8:
+-            resolve_clear_attachment.clearValue.depthStencil.depth =
+-                xenos::UNorm24To32(depth_guest_clear_value);
+-            break;
+-          case xenos::DepthRenderTargetFormat::kD24FS8:
+-            // Taking [0, 2) -> [0, 1) remapping into account.
+-            resolve_clear_attachment.clearValue.depthStencil.depth =
+-                xenos::Float20e4To32(depth_guest_clear_value) * 0.5f;
+-            break;
+-        }
+-        resolve_clear_attachment.clearValue.depthStencil.stencil = uint32_t(clear_value) & 0xFF;
+-      } else {
+-        resolve_clear_attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+-        bool dest_color_transfer_is_uint = false;
+-        GetColorOwnershipTransferVulkanFormat(
+-            dest_rt_key.GetColorFormat(), dest_rt_key.msaa_samples, &dest_color_transfer_is_uint);
+-        switch (dest_rt_key.GetColorFormat()) {
+-          case xenos::ColorRenderTargetFormat::k_8_8_8_8:
+-          case xenos::ColorRenderTargetFormat::k_8_8_8_8_GAMMA: {
+-            for (uint32_t j = 0; j < 4; ++j) {
+-              resolve_clear_attachment.clearValue.color.float32[j] =
+-                  ((clear_value >> (j * 8)) & 0xFF) * (1.0f / 0xFF);
+-            }
+-            if (dest_rt_key.GetColorFormat() == xenos::ColorRenderTargetFormat::k_8_8_8_8_GAMMA &&
+-                gamma_render_target_as_unorm16_) {
+-              // 8_8_8_8_GAMMA is represented by linear stored in
+-              // R16G16B16A16_UNORM.
+-              for (uint32_t j = 0; j < 3; ++j) {
+-                resolve_clear_attachment.clearValue.color.float32[j] =
+-                    xenos::PWLGammaToLinear(resolve_clear_attachment.clearValue.color.float32[j]);
+-              }
+-            }
+-          } break;
+-          case xenos::ColorRenderTargetFormat::k_2_10_10_10:
+-          case xenos::ColorRenderTargetFormat::k_2_10_10_10_AS_10_10_10_10: {
+-            for (uint32_t j = 0; j < 3; ++j) {
+-              resolve_clear_attachment.clearValue.color.float32[j] =
+-                  ((clear_value >> (j * 10)) & 0x3FF) * (1.0f / 0x3FF);
+-            }
+-            resolve_clear_attachment.clearValue.color.float32[3] =
+-                ((clear_value >> 30) & 0x3) * (1.0f / 0x3);
+-          } break;
+-          case xenos::ColorRenderTargetFormat::k_2_10_10_10_FLOAT:
+-          case xenos::ColorRenderTargetFormat::k_2_10_10_10_FLOAT_AS_16_16_16_16: {
+-            for (uint32_t j = 0; j < 3; ++j) {
+-              resolve_clear_attachment.clearValue.color.float32[j] =
+-                  xenos::Float7e3To32((clear_value >> (j * 10)) & 0x3FF);
+-            }
+-            resolve_clear_attachment.clearValue.color.float32[3] =
+-                ((clear_value >> 30) & 0x3) * (1.0f / 0x3);
+-          } break;
+-          case xenos::ColorRenderTargetFormat::k_16_16:
+-          case xenos::ColorRenderTargetFormat::k_16_16_FLOAT: {
+-            // Using uint for transfers and clears of both. Disregarding the
+-            // current -32...32 vs. -1...1 settings for consistency with color
+-            // clear via depth aliasing.
+-            for (uint32_t j = 0; j < 2; ++j) {
+-              uint16_t component = uint16_t((clear_value >> (j * 16)) & 0xFFFF);
+-              if (dest_color_transfer_is_uint) {
+-                resolve_clear_attachment.clearValue.color.uint32[j] = component;
+-              } else if (IsColor16FormatFloatLike(dest_rt_key.GetColorFormat())) {
+-                resolve_clear_attachment.clearValue.color.float32[j] =
+-                    rex::xenos_half_to_float(component);
+-              } else {
+-                resolve_clear_attachment.clearValue.color.float32[j] =
+-                    std::max(float(int16_t(component)) * (1.0f / 32767.0f), -1.0f);
+-              }
+-            }
+-          } break;
+-          case xenos::ColorRenderTargetFormat::k_16_16_16_16:
+-          case xenos::ColorRenderTargetFormat::k_16_16_16_16_FLOAT: {
+-            // Using uint for transfers and clears of both. Disregarding the
+-            // current -32...32 vs. -1...1 settings for consistency with color
+-            // clear via depth aliasing.
+-            for (uint32_t j = 0; j < 4; ++j) {
+-              uint16_t component = uint16_t((clear_value >> (j * 16)) & 0xFFFF);
+-              if (dest_color_transfer_is_uint) {
+-                resolve_clear_attachment.clearValue.color.uint32[j] = component;
+-              } else if (IsColor16FormatFloatLike(dest_rt_key.GetColorFormat())) {
+-                resolve_clear_attachment.clearValue.color.float32[j] =
+-                    rex::xenos_half_to_float(component);
+-              } else {
+-                resolve_clear_attachment.clearValue.color.float32[j] =
+-                    std::max(float(int16_t(component)) * (1.0f / 32767.0f), -1.0f);
+-              }
+-            }
+-          } break;
+-          case xenos::ColorRenderTargetFormat::k_32_FLOAT: {
+-            uint32_t component = uint32_t(clear_value);
+-            if (dest_color_transfer_is_uint) {
+-              // Using uint for proper denormal and NaN handling.
+-              resolve_clear_attachment.clearValue.color.uint32[0] = component;
+-            } else {
+-              std::memcpy(&resolve_clear_attachment.clearValue.color.float32[0], &component,
+-                          sizeof(component));
+-            }
+-          } break;
+-          case xenos::ColorRenderTargetFormat::k_32_32_FLOAT: {
+-            uint32_t component_0 = uint32_t(clear_value);
+-            uint32_t component_1 = uint32_t(clear_value >> 32);
+-            if (dest_color_transfer_is_uint) {
+-              // Using uint for proper denormal and NaN handling.
+-              resolve_clear_attachment.clearValue.color.uint32[0] = component_0;
+-              resolve_clear_attachment.clearValue.color.uint32[1] = component_1;
+-            } else {
+-              std::memcpy(&resolve_clear_attachment.clearValue.color.float32[0], &component_0,
+-                          sizeof(component_0));
+-              std::memcpy(&resolve_clear_attachment.clearValue.color.float32[1], &component_1,
+-                          sizeof(component_1));
+-            }
+-          } break;
+-        }
+-      }
++      VkClearAttachment resolve_clear_attachment =
++          make_clear_attachment(dest_rt_key, render_target_resolve_clear_values[i]);
+       command_buffer.CmdVkClearAttachments(1, &resolve_clear_attachment, 1, &resolve_clear_rect);
+     }
+   }
+--- a/src/graphics/vulkan/command_processor.cpp
++++ b/src/graphics/vulkan/command_processor.cpp
+@@ -3256,6 +3256,42 @@
+   in_render_pass_ = true;
+ }
+ 
++void VulkanCommandProcessor::BeginIndependentClearPair(
++    VkRenderPass render_pass, const VulkanRenderTargetCache::Framebuffer* framebuffer,
++    VkImageView depth_view, VkImageView color_view) {
++  // End the previous scope before selecting different attachment views.
++  EndRenderPass();
++  SubmitBarriers(false);
++  const bool dynamic = REXCVAR_GET(vulkan_dynamic_rendering) &&
++      GetVulkanDevice()->properties().dynamicRendering;
++  if (!dynamic) {
++    SubmitBarriersAndEnterRenderTargetCacheRenderPass(render_pass, framebuffer);
++    return;
++  }
++  VkRenderingAttachmentInfo color = {};
++  color.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
++  color.imageView = color_view;
++  color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++  color.resolveMode = VK_RESOLVE_MODE_NONE;
++  color.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++  color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
++  VkRenderingAttachmentInfo depth = color;
++  depth.imageView = depth_view;
++  depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
++  VkRenderingInfo info = {};
++  info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
++  info.renderArea.extent = framebuffer->host_extent;
++  info.layerCount = 1;
++  info.colorAttachmentCount = 1;
++  info.pColorAttachments = &color;
++  info.pDepthAttachment = &depth;
++  info.pStencilAttachment = &depth;
++  deferred_command_buffer_.CmdVkBeginRendering(&info);
++  current_render_pass_ = VK_NULL_HANDLE;
++  current_framebuffer_ = framebuffer;
++  in_render_pass_ = true;
++}
++
+ void VulkanCommandProcessor::EndRenderPass() {
+   assert_true(submission_open_);
+   if (!in_render_pass_) {
+--- a/include/rex/graphics/vulkan/command_processor.h
++++ b/include/rex/graphics/vulkan/command_processor.h
+@@ -199,6 +199,10 @@
+   void SubmitBarriersAndEnterRenderTargetCacheRenderPass(
+       VkRenderPass render_pass, const VulkanRenderTargetCache::Framebuffer* framebuffer,
+       VkImageView transfer_dest_view, bool transfer_dest_is_depth);
++  // Explicit resolve-clear destinations; does not reuse draw attachments.
++  void BeginIndependentClearPair(VkRenderPass render_pass,
++      const VulkanRenderTargetCache::Framebuffer* framebuffer,
++      VkImageView depth_view, VkImageView color_view);
+   // Must be called before doing anything outside the render pass scope,
+   // including adding pipeline barriers that are not a part of the render pass
+   // scope. Submission must be open.
