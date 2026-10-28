@@ -217,7 +217,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
         guard child == nil else { return }
         do {
             let runtime = Bundle.main.resourceURL!.appendingPathComponent("Game.app/Contents/MacOS")
-            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("CacheTextureExponentV1"), logs = home.appendingPathComponent("Logs")
+            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("CacheCombinedFlowV1"), logs = home.appendingPathComponent("Logs")
             for path in [user,cache,logs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
             // Separate shader-semantics namespace; retain previous caches untouched.
             // Do not import old pipeline descriptions into this corrected path.
@@ -234,10 +234,14 @@ final class Launcher: NSObject, NSApplicationDelegate {
             // Optimize translated modules; avoid the problematic stored-pipeline preload.
             if env["GRFS_SPIRV_OPTIMIZE"] == nil { env["GRFS_SPIRV_OPTIMIZE"] = "1" }
             env["GRFS_SKIP_PIPELINE_PRELOAD"] = "1"
+            env["GRFS_FORWARD_FLOW"] = "1"
+            env["GRFS_CLEAR_PAIR"] = "1"
+            // Production package omits diagnostic file writes and GPU stage probes.
+            env.removeValue(forKey: "GRFS_CLEAR_STATS")
             // Presence enables eager acquisition, even for a value of "0".
             env.removeValue(forKey: "GRFS_EAGER_DRAWABLE")
             env["MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"] = "1"
-            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.10"
+            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.11"
             // The GRFS HUD is opt-in in F5 and counts guest swap requests.
             // Do not inherit Apple's presentation/UI FPS HUD as game FPS.
             env["MTL_HUD_ENABLED"] = "0"
