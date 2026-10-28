@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0.11 — October 28, 2026
+
+- Simplify control flow in three exact pixel shader variants (C8B7, FBF5 and D204), retaining texture operations, precision and shader interfaces.
+- Group compatible independent depth/stencil and color resolve clears with explicit dynamic-rendering attachment views, including guest 10-bit color. Keep the original fallback when transfers, host-depth stores, overlap or unsupported layouts are involved.
+- Preserve the original clear rectangle and format conversion; no global rendering-mode or synchronization change.
+- Use a separate CacheCombinedFlowV1 namespace; retain earlier caches, saves and installed game data.
+- Owner tested the combined build on MacBook Air M3 and reported no visual bugs. Two captures confirmed 777 grouped clears. Guest cadence remained 12.91–13.11 requests/s (76.3–77.5 ms mean) in the tested slow scene; these are not displayed FPS and no controlled uplift or guaranteed 30 FPS is claimed.
+- Dynamic-rendering GPU equivalence checks passed 48 rectangle/value cases. No diagnostic F8/F9 selector or GPU stage instrumentation is included in the normal launcher.
+
 ## 0.10.0.10 — October 27, 2026
 
 - Correct texture color exponent decoding: use signed bits 13:18 of fetch word 3, independently of LOD bias in word 4.
