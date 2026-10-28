@@ -57,3 +57,7 @@ is disabled by default, opt-in in F5, and persists via `UserData/grfs.toml`.
 ### v0.10.0.10 packaging
 
 Apply macos-texture-exp-adjust.patch and macos-pipeline-preload-bypass.patch in addition to the retained v9 optimizer patch. Pass the resulting GPU via GRFS_GPU_FILE and preserve the other v9 runtime files. Launcher enables execute_unclipped_draw_vs_on_cpu, disables eager drawable acquisition, and bypasses stored pipeline preload. CacheTextureExponentV1 is separate from old caches; no legacy shader/pipeline import occurs. Saves and installed Game are unchanged. Owner checks are recorded in docs/validation-texture-edram-20261027.md; the owner accepted the final package on M3 and approved publication.
+
+### v0.10.0.11 packaging
+
+Apply macos-three-shader-flow.patch and macos-independent-clear-pair.patch after the retained v10 patches; copy patches/ClearPairGuard.h alongside render_target_cache.cpp. The explicit dynamic-rendering helper adds a method but no class fields. Rebuild both command_processor.cpp and render_target_cache.cpp. Package the tested GPU library with GRFS_GPU_FILE. Launcher enables GRFS_FORWARD_FLOW=1 and GRFS_CLEAR_PAIR=1 with separate CacheCombinedFlowV1. Original fallback, saves and installer remain. See docs/validation-combined-flow-20261028.md.
