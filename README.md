@@ -45,6 +45,14 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
+## Combined rendering changes — v0.10.0.11
+
+The current release combines control-flow simplification for three exact pixel shader variants with independent depth/color clear grouping through dynamic rendering. Original clear values, rectangles and dependency checks are retained; unsupported work stays on the original path.
+
+The owner reported no visual bugs in the tested M3 combined build. Both shader targets and grouped clears were observed in the capture. The slow-scene captures remained around 13 game requests/s; these are not displayed FPS, and a controlled frame-rate improvement or 30 FPS is **not** claimed. First-use shader compilation can still cause pauses.
+
+`CacheCombinedFlowV1` keeps this shader variant separate from earlier caches. Game data and saves are unchanged. [Details and validation](docs/validation-combined-flow-20261028.md).
+
 ## Graphics stability — v0.10.0.10
 
 This release corrects texture color exponent decoding and enables unclipped draw
@@ -234,7 +242,8 @@ All persistent data lives under:
 | :--- | :--- |
 | `Game/` | Extracted game files |
 | `UserData/` | Profile and save data |
-| `CacheTextureExponentV1/` | Current Xenos shader storage; pipelines created on demand |
+| `CacheCombinedFlowV1/` | Current Xenos shader storage; pipelines created on demand |
+| `CacheTextureExponentV1/` | Previous version cache, retained for rollback |
 | `Cache/`, `CachePersistent/` | Earlier caches, retained without deletion |
 | `Logs/` | Game and console logs |
 | `Updates/` | Downloaded and staged app updates |
