@@ -26,7 +26,7 @@ assert(!Updates.newer(2026101904,than:"2026101904"))
 assert(!Updates.newer(2026101903,than:"2026101904"))
 print("PASS: signed manifest, wrong key, tampering, host/repository/HTTPS and version checks")
 '''.replace('assert(try Updates.verified(good,publicKey:key.publicKey.rawRepresentation).build == 2026101905)','let verified = try Updates.verified(good,publicKey:key.publicKey.rawRepresentation); assert(verified.build == 2026101905)'))
-    subprocess.run(['swiftc',str(t/'main.swift'),str(root/'Launcher.swift'),str(root/'Updater.swift'),str(root/'LauncherTheme.swift'),str(root/'LegacyBackups.swift'),str(root/'RestartRequest.swift'),'-framework','AppKit','-framework','CryptoKit','-module-cache-path','/private/tmp/grfs-swift-cache','-o',str(t/'tests')],check=True)
+    subprocess.run(['swiftc',str(t/'main.swift'),str(root/'Launcher.swift'),str(root/'Updater.swift'),str(root/'LauncherTheme.swift'),str(root/'LegacyBackups.swift'),str(root/'RestartRequest.swift'),str(root/'ShaderPreparation.swift'),'-framework','AppKit','-framework','CryptoKit','-module-cache-path','/private/tmp/grfs-swift-cache','-o',str(t/'tests')],check=True)
     subprocess.run([str(t/'tests')],check=True)
     for name,content in [('old.app','old'),('new.app','new')]:
         (t/name).mkdir();(t/name/'version').write_text(content)

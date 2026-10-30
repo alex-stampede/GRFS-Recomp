@@ -213,21 +213,40 @@ final class Launcher: NSObject, NSApplicationDelegate {
             }
         }
     }
+    let shaderPreparation = ShaderPreparation()
     func startGame() {
         guard child == nil else { return }
         do {
             let runtime = Bundle.main.resourceURL!.appendingPathComponent("Game.app/Contents/MacOS")
-            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("CacheCombinedFlowV1"), logs = home.appendingPathComponent("Logs")
-            for path in [user,cache,logs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
-            // Separate shader-semantics namespace; retain previous caches untouched.
-            // Do not import old pipeline descriptions into this corrected path.
+            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("Diagnostics/CacheCatalogV1"), logs = home.appendingPathComponent("Logs")
+            let preparationLogs=logs.appendingPathComponent("Preparation-"+UUID().uuidString)
+            for path in [user,cache,logs,preparationLogs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
+            // Prepare known portable records using the tested catalog path.
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime
             // Match the M3-tested path: on-demand pipelines, bounded draw extents.
             // Keep synchronous gameplay compilation and persistent shader storage.
-            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+logs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--vulkan_pipeline_creation_threads=1","--execute_unclipped_draw_vs_on_cpu=true","--log_level=info"]
+            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+preparationLogs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--vulkan_pipeline_creation_threads=1","--execute_unclipped_draw_vs_on_cpu=true","--log_level=info"]
             let restart = RestartRequest(directory: logs)
             var env = ProcessInfo.processInfo.environment
             env.merge(restart.environment) { _, new in new }
+            env["GRFS_SAFE_PREWARM"]="1"
+            let candidates=["CacheCombinedFlowV1","CacheTextureExponentV1","CachePersistent","CachePersistentTest","Cache","Diagnostics/CachePrewarmV1","Diagnostics/CacheVisionPassMapV1"]
+            var catalogFolders=Set(candidates.map{home.appendingPathComponent($0+"/shaders/shareable").path})
+            // Previous diagnostic sessions also contain portable records. The SDK validates
+            // title, record hashes and versions; no native pipeline binaries are imported.
+            if let entries=fm.enumerator(at:home.appendingPathComponent("Performance"),includingPropertiesForKeys:nil,options:[.skipsHiddenFiles]) {
+                for case let file as URL in entries where file.lastPathComponent=="55530833.fbo.vk.xpso" {
+                    catalogFolders.insert(file.deletingLastPathComponent().path)
+                }
+            }
+            env["GRFS_CATALOG_SOURCES"]=catalogFolders.sorted().joined(separator:"\n")
+            try catalogFolders.sorted().joined(separator:"\n").write(to:preparationLogs.appendingPathComponent("catalog-sources.txt"),atomically:true,encoding:.utf8)
+            env["GRFS_PREWARM_AUDIT"]=preparationLogs.appendingPathComponent("pipeline-audit.jsonl").path
+            let ipcDir=home.appendingPathComponent("Diagnostics/PreparationIPC")
+            try fm.createDirectory(at:ipcDir,withIntermediateDirectories:true)
+            let ipc=ipcDir.appendingPathComponent(UUID().uuidString+".json");shaderPreparation.preparationIPC=ipc
+            env["GRFS_PREWARM_PROGRESS"]=ipc.path
+            try ipc.path.write(to:preparationLogs.appendingPathComponent("preparation-ipc-path.txt"),atomically:true,encoding:.utf8)
             // macOS Game Mode requires native fullscreen Spaces, not a borderless window.
             env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
@@ -241,10 +260,11 @@ final class Launcher: NSObject, NSApplicationDelegate {
             // Presence enables eager acquisition, even for a value of "0".
             env.removeValue(forKey: "GRFS_EAGER_DRAWABLE")
             env["MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"] = "1"
-            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.11"
-            // The GRFS HUD is opt-in in F5 and counts guest swap requests.
-            // Do not inherit Apple's presentation/UI FPS HUD as game FPS.
-            env["MTL_HUD_ENABLED"] = "0"
+            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.12"
+            // Enable the Metal HUD facility; the F5 callback controls each layer
+            // live. These are presentation statistics, not unique game frames.
+            env["MTL_HUD_ENABLED"] = "1"
+            env["MTL_HUD_ALIGNMENT"] = "topright"
             env["DYLD_INSERT_LIBRARIES"] = runtime.appendingPathComponent("libGRFSWindowTitle.dylib").path
             if Bundle.main.object(forInfoDictionaryKey:"GRFSFullscreenTrace") as? Bool == true { env["GRFS_FULLSCREEN_TRACE"] = "1" }
             p.environment = env
@@ -254,6 +274,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 try? file.close()
                 let shouldRestart = restart.consume(exitStatus: process.terminationStatus)
                 DispatchQueue.main.async {
+                    self.shaderPreparation.stop()
                     self.child = nil
                     if shouldRestart { self.startGame(); return }
                     self.status.stringValue = process.terminationStatus == 0 ? "Game closed. Saves and shader storage preserved." : "The game exited with code \(process.terminationStatus). Check the Logs folder."
@@ -265,7 +286,8 @@ final class Launcher: NSObject, NSApplicationDelegate {
             status.stringValue = "Starting game and loading known shaders…"
             try p.run(); child = p; launched = true; button.isEnabled = false
             window.orderOut(nil); NSApp.setActivationPolicy(.accessory)
-        } catch { alert(error) }
+            shaderPreparation.process=p;shaderPreparation.showPreparation(preparationLogs)
+        } catch { shaderPreparation.stop();alert(error) }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if busy || child != nil {

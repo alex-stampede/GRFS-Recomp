@@ -1,3 +1,11 @@
+## v0.10.0.12 — 2026-10-30
+
+- Prepare validated local shader/pipeline catalogs and retain compatible native cache data; keep fresh runtime binding identities.
+- Show a GRFS preparation panel over fullscreen Spaces, follow the game display and dismiss on completion or game submission evidence.
+- Add F5 host presentation caps, Metal HUD plus guest submission/stall counter, rounded black application icons.
+- Preserve v11 rendering fixes, synchronous compilation/submission, ISO installation, updater, controls and persistent saves.
+- ISO-wide extraction and complete pipeline coverage remain pending; no guaranteed 30 FPS claim.
+
 # Changelog
 
 ## 0.10.0.11 — October 28, 2026

@@ -219,13 +219,22 @@ class Dialog final : public rex::ui::ImGuiDialog {
     ImGui::TextWrapped("%s", Text("Save and restart to apply. Works in native fullscreen. Preserves aspect ratio; does not change Xbox internal resolution.",
       "Guarda y reinicia para aplicar. Funciona en pantalla completa nativa. Conserva la proporcion; no cambia la resolucion interna de Xbox."));
     ImGui::Separator();
+    const char* limits[] = {Text("Unlimited", "Sin limite"), "30 FPS", "60 FPS", "120 FPS"};
+    const char* limit_ids[] = {"0", "30", "60", "120"};
+    auto limit=rex::cvar::GetFlagByName("grfs_present_limit");
+    int limit_choice=limit=="30"?1:limit=="60"?2:limit=="120"?3:0;
+    if(ImGui::Combo(Text("Presentation FPS limit", "Limite de FPS de presentacion"),&limit_choice,limits,4))
+      Set("grfs_present_limit",limit_ids[limit_choice]);
+    ImGui::TextWrapped("%s",Text("Applies immediately. Save to remember. Limits presentation, not game speed or new frames generated.",
+      "Se aplica al instante. Guarda para recordar. Limita la presentacion, no la velocidad del juego ni los cuadros nuevos que genera."));
+    ImGui::Separator();
     bool hud = rex::cvar::GetFlagByName("grfs_performance_hud") == "true";
     if (ImGui::Checkbox(Text("Performance HUD", "HUD de rendimiento"), &hud)) {
       Set("grfs_performance_hud", hud ? "true" : "false");
       ApplyPerformanceHUD(hud);
     }
-    ImGui::TextWrapped("%s", Text("Counts game swap requests, not UI redraws. Save to remember this setting.",
-      "Cuenta solicitudes de cuadro del juego, no redibujados de interfaz. Guarda para recordar este ajuste."));
+    ImGui::TextWrapped("%s", Text("Metal presentation statistics; may include repeated images. Save to remember.",
+      "Estadisticas de presentacion Metal; pueden incluir imagenes repetidas. Guarda para recordar."));
     ImGui::Separator();
     bool mouse = rex::cvar::GetFlagByName("mnk_mouse") == "true";
     if (ImGui::Checkbox(Text("Mouse camera", "Camara con raton"), &mouse)) Set("mnk_mouse", mouse ? "true" : "false");
@@ -312,3 +321,7 @@ REXCVAR_DEFINE_COMMAND_ARGS(grfs_notify_screen, [](std::string_view screen) {
   if (screen == "Options.feu") grfs::options::NotifyOpen();
   else grfs::options::NotifyClose();
 }, "GRFS/Internal", "Native menu screen notification").debug_only();
+
+REXCVAR_DEFINE_INT32(grfs_present_limit, 0, "GRFS/Display",
+    "Host presentation limit: 0 (unlimited), 30, 60 or 120; does not change guest timing")
+    .lifecycle(rex::cvar::Lifecycle::kHotReload);

@@ -1,0 +1,324 @@
+--- /Users/mac/rexglue-sdk/src/graphics/vulkan/pipeline_cache.cpp	2026-10-20 09:50:50
++++ performance/catalog-prewarm-20261030/pipeline_cache.cpp	2026-10-30 11:40:16
+@@ -1,3 +1,4 @@
++#include <sstream>
+ /**
+  ******************************************************************************
+  * Xenia : Xbox 360 Emulator Research Project                                 *
+@@ -14,6 +15,9 @@
+ #include <atomic>
+ #include <cstdint>
+ #include <chrono>
++#include <fstream>
++#include <map>
++#include <rex/ui/vulkan/instance.h>
+ #include <cstdlib>
+ #include <cstring>
+ #include <memory>
+@@ -62,6 +66,76 @@
+     .lifecycle(rex::cvar::Lifecycle::kHotReload);
+ 
+ namespace rex::graphics::vulkan {
++namespace {
++struct GrfsWarmCache {
++  VkPipelineCache cache=VK_NULL_HANDLE;
++  std::filesystem::path path;
++  std::mutex lock;
++  std::chrono::steady_clock::time_point saved{};
++  std::set<uint64_t> known,seen;
++  bool preparing=true;
++  uint64_t prepared=0,failed=0,live=0,first=0,reused=0;
++  PFN_vkGetPipelineCacheData get=nullptr;
++  PFN_vkDestroyPipelineCache destroy=nullptr;
++};
++std::map<const VulkanPipelineCache*,std::unique_ptr<GrfsWarmCache>> grfs_warm;
++bool GrfsWarmEnabled(){const char* e=std::getenv("GRFS_SAFE_PREWARM");return e && !std::strcmp(e,"1");}
++void GrfsWarmProgress(const char* phase,size_t done,size_t total){
++  if(const char* path=std::getenv("GRFS_PREWARM_PROGRESS")) {
++    const auto tmp=std::string(path)+".tmp";
++    if(FILE*f=std::fopen(tmp.c_str(),"w")){
++      std::fprintf(f,"{\"phase\":\"%s\",\"done\":%zu,\"total\":%zu}\n",phase,done,total);
++      std::fclose(f);std::rename(tmp.c_str(),path);
++    }
++  }
++}
++void GrfsSaveDriverCache(const ui::vulkan::VulkanDevice* device,GrfsWarmCache& s,bool force=false){
++  if(s.cache==VK_NULL_HANDLE)return;
++  std::lock_guard<std::mutex> lock(s.lock);
++  const auto now=std::chrono::steady_clock::now();
++  if(!force && now-s.saved<std::chrono::seconds(1))return;
++  s.saved=now;size_t size=0;
++  auto& f=device->functions();
++  if(s.get(device->device(),s.cache,&size,nullptr)!=VK_SUCCESS || size>256*1024*1024 || size<32)return;
++  std::vector<uint8_t> bytes(size);
++  if(s.get(device->device(),s.cache,&size,bytes.data())!=VK_SUCCESS)return;
++  auto tmp=s.path;tmp+=".tmp";
++  if(FILE*out=std::fopen(tmp.c_str(),"wb")){
++    const bool ok=std::fwrite(bytes.data(),1,size,out)==size;std::fclose(out);
++    if(ok){std::error_code ec;std::filesystem::rename(tmp,s.path,ec);}
++  }
++}
++void GrfsInitDriverCache(const VulkanPipelineCache* owner,const ui::vulkan::VulkanDevice* device,const std::filesystem::path& root){
++  auto state=std::make_unique<GrfsWarmCache>();state->path=root/"grfs-driver-v1.bin";
++  std::vector<uint8_t> bytes;std::error_code ec;
++  auto size=std::filesystem::file_size(state->path,ec);
++  if(!ec && size>=32 && size<=256*1024*1024){
++    bytes.resize(size);std::ifstream file(state->path,std::ios::binary);file.read(reinterpret_cast<char*>(bytes.data()),size);
++    if(!file)bytes.clear();
++  }
++  VkPhysicalDeviceProperties props{};
++  device->vulkan_instance()->functions().vkGetPhysicalDeviceProperties(device->physical_device(),&props);
++  if(!bytes.empty()){
++    uint32_t header[4];std::memcpy(header,bytes.data(),16);
++    if(header[0]<32 || header[0]>bytes.size() || header[1]!=VK_PIPELINE_CACHE_HEADER_VERSION_ONE ||
++       header[2]!=props.vendorID || header[3]!=props.deviceID || std::memcmp(bytes.data()+16,props.pipelineCacheUUID,VK_UUID_SIZE)) {
++      REXGPU_WARN("[GRFS PREWARM] incompatible driver cache ignored");bytes.clear();
++    }
++  }
++  VkPipelineCacheCreateInfo info{};info.sType=VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
++  info.initialDataSize=bytes.size();info.pInitialData=bytes.empty()?nullptr:bytes.data();
++  const auto get_proc=device->vulkan_instance()->functions().vkGetDeviceProcAddr;
++  const auto create=(PFN_vkCreatePipelineCache)get_proc(device->device(),"vkCreatePipelineCache");
++  state->get=(PFN_vkGetPipelineCacheData)get_proc(device->device(),"vkGetPipelineCacheData");
++  state->destroy=(PFN_vkDestroyPipelineCache)get_proc(device->device(),"vkDestroyPipelineCache");
++  if(!create || !state->get || !state->destroy)return;
++  auto result=create(device->device(),&info,nullptr,&state->cache);
++  if(result!=VK_SUCCESS && !bytes.empty()){info.initialDataSize=0;info.pInitialData=nullptr;bytes.clear();result=create(device->device(),&info,nullptr,&state->cache);}
++  REXGPU_INFO("[GRFS PREWARM] driver cache bytes={} result={}",bytes.size(),int(result));
++  grfs_warm[owner]=std::move(state);
++}
++}
++
+ 
+ namespace {
+ 
+@@ -410,9 +484,53 @@
+     }
+   }
+ 
++  if(GrfsWarmEnabled()) {
++    GrfsWarmProgress("scan",0,1);
++    GrfsInitDriverCache(this,command_processor_.GetVulkanDevice(),cache_root);
++  }
+   bool edram_fragment_shader_interlock =
+       render_target_cache_.GetPath() == RenderTargetCache::Path::kPixelShaderInterlock;
+ 
++  // Merge only validated portable records before any stream is opened.
++  // Never import native driver caches or preloaded runtime identities.
++  if(GrfsWarmEnabled()) if(const char* sources=std::getenv("GRFS_CATALOG_SOURCES")) {
++    std::set<uint64_t> shader_hashes,pipeline_hashes;
++    std::vector<uint8_t> shader_bytes,pipeline_bytes;
++    const uint32_t shader_head[2]={0x48534558,rex::byte_swap(ShaderStoredHeader::kVersion)};
++    const uint32_t pipeline_head[3]={0x53504558,edram_fragment_shader_interlock?1u:0u,rex::byte_swap(std::max(PipelineDescription::kVersion,SpirvShaderTranslator::Modification::kVersion))};
++    auto merge=[&](const std::filesystem::path& folder) {
++      auto read=[](const std::filesystem::path& path){std::vector<uint8_t> b;std::error_code ec;auto n=std::filesystem::file_size(path,ec);if(ec||n>128*1024*1024)return b;b.resize(n);std::ifstream f(path,std::ios::binary);f.read((char*)b.data(),n);if(!f)b.clear();return b;};
++      auto b=read(folder/fmt::format("{:08X}.xsh",title_id));
++      if(b.size()>=sizeof(shader_head)&&!std::memcmp(b.data(),shader_head,sizeof(shader_head))){
++        size_t pos=sizeof(shader_head);
++        while(pos+sizeof(ShaderStoredHeader)<=b.size()){
++          ShaderStoredHeader h;std::memcpy(&h,b.data()+pos,sizeof(h));
++          size_t bytes=size_t(h.ucode_dword_count)*4;
++          if(bytes>b.size()-pos-sizeof(h)||XXH3_64bits(b.data()+pos+sizeof(h),bytes)!=h.ucode_data_hash)break;
++          if(shader_hashes.insert(h.ucode_data_hash).second)shader_bytes.insert(shader_bytes.end(),b.begin()+pos,b.begin()+pos+sizeof(h)+bytes);
++          pos+=sizeof(h)+bytes;
++        }
++      }
++      b=read(folder/fmt::format("{:08X}.{}.vk.xpso",title_id,edram_fragment_shader_interlock?"fsi":"fbo"));
++      if(b.size()>=sizeof(pipeline_head)&&!std::memcmp(b.data(),pipeline_head,sizeof(pipeline_head))){
++        for(size_t pos=sizeof(pipeline_head);pos+sizeof(PipelineStoredDescription)<=b.size();pos+=sizeof(PipelineStoredDescription)){
++          PipelineStoredDescription d;std::memcpy(&d,b.data()+pos,sizeof(d));
++          if(XXH3_64bits(&d.description,sizeof(d.description))!=d.description_hash)break;
++          if(pipeline_hashes.insert(d.description_hash).second)pipeline_bytes.insert(pipeline_bytes.end(),b.begin()+pos,b.begin()+pos+sizeof(d));
++        }
++      }
++    };
++    merge(shader_storage_shareable_root);
++    std::istringstream input(sources);std::string folder;
++    while(std::getline(input,folder))if(!folder.empty())merge(folder);
++    auto save=[](const std::filesystem::path& path,const void* header,size_t size,const std::vector<uint8_t>& bytes){
++      auto tmp=path;tmp+=".catalog.tmp";if(FILE*f=std::fopen(tmp.c_str(),"wb")){bool ok=std::fwrite(header,1,size,f)==size && (bytes.empty()||std::fwrite(bytes.data(),1,bytes.size(),f)==bytes.size());ok=std::fclose(f)==0&&ok;if(ok){std::error_code ec;std::filesystem::rename(tmp,path,ec);}}
++    };
++    save(shader_storage_shareable_root/fmt::format("{:08X}.xsh",title_id),shader_head,sizeof(shader_head),shader_bytes);
++    save(shader_storage_shareable_root/fmt::format("{:08X}.{}.vk.xpso",title_id,edram_fragment_shader_interlock?"fsi":"fbo"),pipeline_head,sizeof(pipeline_head),pipeline_bytes);
++    REXGPU_INFO("[GRFS CATALOG] merged shaders={} pipelines={}",shader_hashes.size(),pipeline_hashes.size());
++  }
++
+   // Initialize the pipeline storage stream - read pipeline descriptions and
+   // collect used shader modifications to translate.
+   std::vector<PipelineStoredDescription> pipeline_stored_descriptions;
+@@ -572,8 +690,23 @@
+            shader_storage_file_);
+   }
+ 
++  // Retain the on-disk records, but translate/create pipelines on first use.
++  // M3 cold runs were correct; cached preload reproduced geometry corruption.
++  const bool skip_pipeline_preload = !GrfsWarmEnabled() &&
++      std::getenv("GRFS_SKIP_PIPELINE_PRELOAD") &&
++      !std::strcmp(std::getenv("GRFS_SKIP_PIPELINE_PRELOAD"), "1");
++  if (skip_pipeline_preload) {
++    REXGPU_INFO("[GRFS PIPELINE PRELOAD] bypassing {} stored pipelines; Xenos shaders retained",
++                pipeline_stored_descriptions.size());
++    shader_translations_needed.clear();
++  }
++
++  size_t grfs_translated=0;
++  const auto grfs_warm_start=std::chrono::steady_clock::now();
++  if(GrfsWarmEnabled())GrfsWarmProgress("shaders",0,shader_translations_needed.size());
+   // Translate shader modifications needed for stored pipelines.
+   for (const std::pair<uint64_t, uint64_t>& translation_needed : shader_translations_needed) {
++    if(GrfsWarmEnabled())GrfsWarmProgress("shaders",++grfs_translated,shader_translations_needed.size());
+     auto shader_it = shaders_.find(translation_needed.first);
+     if (shader_it == shaders_.end()) {
+       continue;
+@@ -598,6 +731,7 @@
+   pipeline_creations.reserve(pipeline_stored_descriptions.size());
+   for (const PipelineStoredDescription& pipeline_stored_description :
+        pipeline_stored_descriptions) {
++    if (skip_pipeline_preload) break;
+     const PipelineDescription& pipeline_description = pipeline_stored_description.description;
+ 
+     auto find_it = pipelines_.find(pipeline_description);
+@@ -629,6 +763,7 @@
+     pipeline_creations.push_back(creation_arguments);
+   }
+ 
++  if(GrfsWarmEnabled())GrfsWarmProgress("pipelines",0,pipeline_creations.size());
+   if (!pipeline_creations.empty()) {
+     {
+       std::lock_guard<std::mutex> lock(creation_request_lock_);
+@@ -654,6 +789,7 @@
+       creation_thread_count = std::max(creation_thread_count, size_t(1));
+     }
+     creation_thread_count = std::min(creation_thread_count, pipeline_creations.size());
++    if(GrfsWarmEnabled())creation_thread_count=1;
+ 
+     std::atomic<size_t> next_creation_index(0);
+     std::atomic<size_t> created_pipeline_count(0);
+@@ -667,6 +803,14 @@
+         if (EnsurePipelineCreated(pipeline_creations[creation_index])) {
+           created_pipeline_count.fetch_add(1);
+         }
++        if(GrfsWarmEnabled()) {
++          // Bound temporary GPU pipeline memory: warm one, release it, retain driver data.
++          auto& entry=pipeline_creations[creation_index].pipeline->second;
++          auto handle=entry.pipeline.exchange(VK_NULL_HANDLE,std::memory_order_acq_rel);
++          if(handle!=VK_NULL_HANDLE){auto* device=command_processor_.GetVulkanDevice();device->functions().vkDestroyPipeline(device->device(),handle,nullptr);}
++          entry.pipeline_layout.store(nullptr,std::memory_order_release);
++          GrfsWarmProgress("pipelines",creation_index+1,pipeline_creations.size());
++        }
+       }
+     };
+ 
+@@ -692,7 +836,32 @@
+     {
+       std::lock_guard<std::mutex> lock(creation_request_lock_);
+       startup_loading_ = false;
++    }
++  }
++
++  if(GrfsWarmEnabled()) {
++    auto* device=command_processor_.GetVulkanDevice();
++    auto it=grfs_warm.find(this);if(it!=grfs_warm.end())GrfsSaveDriverCache(device,*it->second,true);
++    // No gameplay has begun. Do not retain preloaded translation/binding identities.
++    last_pipeline_=nullptr;
++    for(auto& p:pipelines_) {
++      VkPipeline handle=p.second.pipeline.load(std::memory_order_acquire);
++      if(handle!=VK_NULL_HANDLE)device->functions().vkDestroyPipeline(device->device(),handle,nullptr);
++    }
++    pipelines_.clear();
++    for(auto& entry:shaders_) {
++      auto* old=entry.second;
++      auto* fresh=new VulkanShader(device,old->type(),old->ucode_data_hash(),old->ucode_dwords(),old->ucode_dword_count(),std::endian::native);
++      fresh->set_ucode_storage_index(shader_storage_index_);
++      delete old;entry.second=fresh;
++    }
++    texture_binding_layout_map_.clear();texture_binding_layouts_.clear();
++    if(it!=grfs_warm.end()){
++      it->second->preparing=false;
+     }
++    const double seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-grfs_warm_start).count();
++    REXGPU_INFO("[GRFS PREWARM] ready: known={} seconds={:.3f}; temporary pipelines and shader identities discarded",pipeline_creations.size(),seconds);
++    GrfsWarmProgress("ready",pipeline_creations.size(),pipeline_creations.size());
+   }
+ 
+   // If any pipeline descriptions were corrupted (or the whole file has excess
+@@ -747,6 +916,12 @@
+     shader_storage_file_flush_needed_ = false;
+   }
+ 
++  auto warm=grfs_warm.find(this);
++  if(warm!=grfs_warm.end()){
++    auto* device=command_processor_.GetVulkanDevice();GrfsSaveDriverCache(device,*warm->second,true);
++    if(warm->second->cache!=VK_NULL_HANDLE)warm->second->destroy(device->device(),warm->second->cache,nullptr);
++    grfs_warm.erase(warm);
++  }
+   shader_storage_cache_root_.clear();
+   shader_storage_title_id_ = 0;
+ }
+@@ -1206,7 +1381,10 @@
+     pipeline.second.is_placeholder.store(false, std::memory_order_release);
+   }
+ 
+-  if (pipeline_storage_file_) {
++  // Avoid appending duplicate pipeline descriptions while preload is bypassed.
++  // Xenos microcode storage and in-process pipeline caching remain enabled.
++  const char* skip_preload = std::getenv("GRFS_SKIP_PIPELINE_PRELOAD");
++  if (pipeline_storage_file_ && (GrfsWarmEnabled() || !(skip_preload && !std::strcmp(skip_preload, "1")))) {
+     assert_not_null(storage_write_thread_);
+     pipeline_storage_file_flush_needed_ = true;
+     {
+@@ -3527,8 +3705,43 @@
+   static const bool trace_grfs_pipeline = std::getenv("REX_GRFS_DIAGNOSTICS") != nullptr;
+   const auto trace_pipeline_start = trace_grfs_pipeline ? std::chrono::steady_clock::now()
+                                                        : std::chrono::steady_clock::time_point{};
+-  VkResult create_result = dfn.vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
+-                                                         &pipeline_create_info, nullptr, &pipeline);
++  // Diagnostic identity: MoltenVK copies layout names into immutable Metal pipelines.
++  // Serialize naming + creation because shader variants share pipeline layouts.
++  static std::mutex grfs_identity_mutex;
++  std::unique_lock<std::mutex> grfs_identity_lock(grfs_identity_mutex, std::defer_lock);
++  const bool grfs_identity = std::getenv("GRFS_PIPELINE_IDENTITY") != nullptr;
++  if (grfs_identity) {
++    grfs_identity_lock.lock();
++    const auto name = fmt::format("GRFS VS={:016X} PS={:016X} VM={:016X} PM={:016X} S={} SS={}",
++        creation_arguments.vertex_shader->shader().ucode_data_hash(),
++        creation_arguments.pixel_shader ? creation_arguments.pixel_shader->shader().ucode_data_hash() : 0,
++        creation_arguments.vertex_shader->modification(),
++        creation_arguments.pixel_shader ? creation_arguments.pixel_shader->modification() : 0,
++        uint32_t(multisample_state.rasterizationSamples), uint32_t(multisample_state.sampleShadingEnable));
++    vulkan_device->SetObjectName(VK_OBJECT_TYPE_PIPELINE_LAYOUT, pipeline_create_info.layout, name.c_str());
++  }
++  const auto grfs_create_start=std::chrono::steady_clock::now();
++  VkResult create_result;
++  auto warm=grfs_warm.find(this);
++  if(warm!=grfs_warm.end() && warm->second->cache!=VK_NULL_HANDLE){
++    std::lock_guard<std::mutex> cache_lock(warm->second->lock);
++    create_result=dfn.vkCreateGraphicsPipelines(device,warm->second->cache,1,&pipeline_create_info,nullptr,&pipeline);
++  }else create_result=dfn.vkCreateGraphicsPipelines(device,VK_NULL_HANDLE,1,&pipeline_create_info,nullptr,&pipeline);
++  if(warm!=grfs_warm.end()) {
++    auto& st=*warm->second;
++    const auto hash=creation_arguments.pipeline->first.GetHash();
++    const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-grfs_create_start).count();
++    const bool known=st.known.contains(hash);
++    if(st.preparing){if(create_result==VK_SUCCESS){++st.prepared;st.known.insert(hash);}else ++st.failed;}
++    else {++st.live;if(st.seen.insert(hash).second){if(known)++st.reused;else ++st.first;}}
++    if(const char* path=std::getenv("GRFS_PREWARM_AUDIT"))if(FILE*f=std::fopen(path,"a")){
++      std::fprintf(f,"{\"host_s\":%.9f,\"phase\":\"%s\",\"hash\":\"%016llX\",\"known\":%s,\"ms\":%.4f,\"result\":%d,\"prepared\":%llu,\"failed\":%llu,\"live\":%llu,\"first_use\":%llu,\"known_use\":%llu}\n",std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(),st.preparing?"prepare":"game",(unsigned long long)hash,known?"true":"false",ms,int(create_result),(unsigned long long)st.prepared,(unsigned long long)st.failed,(unsigned long long)st.live,(unsigned long long)st.first,(unsigned long long)st.reused);std::fclose(f);
++    }
++  }
++  if (grfs_identity) {
++    vulkan_device->SetObjectName(VK_OBJECT_TYPE_PIPELINE_LAYOUT, pipeline_create_info.layout, "");
++    grfs_identity_lock.unlock();
++  }
+   if (trace_grfs_pipeline) {
+     const double elapsed_ms = std::chrono::duration<double, std::milli>(
+         std::chrono::steady_clock::now() - trace_pipeline_start).count();
+@@ -3700,6 +3913,8 @@
+       flush_pipelines = false;
+       assert_not_null(pipeline_storage_file_);
+       fflush(pipeline_storage_file_);
++      auto warm=grfs_warm.find(this);
++      if(warm!=grfs_warm.end())GrfsSaveDriverCache(command_processor_.GetVulkanDevice(),*warm->second);
+     }
+ 
+     const Shader* shader = nullptr;

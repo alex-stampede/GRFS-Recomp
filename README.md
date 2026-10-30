@@ -45,6 +45,14 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 - **Persistent saves and shader storage** outside the app, preserved when updating.
 - **A previous-version backup** when the updater replaces the app.
 
+## Shader preparation and display controls — v0.10.0.12
+
+Known compatible shader/pipeline records are collected locally and prepared before gameplay, with a persistent GPU-compatible driver cache. The dark GRFS progress panel follows the game display and can appear over native fullscreen; it closes when preparation finishes or game submissions begin. First preparation may take several minutes. This prepares known variants, not every shader or pipeline from the ISO.
+
+F5 adds 30/60/120/unlimited host presentation limits. These do not unlock game logic or guarantee that many unique game frames. Metal HUD appears on the right, with a separate game-submission counter below it to expose stalls while Metal repeats an image. App and Dock icons use a rounded black background.
+
+The owner reported better perceived performance and reduced distant-model flicker in the catalog trial. No controlled M3 FPS gain is claimed. On M4 Pro, the same 1,121-pipeline catalog took 218.6 s on its first preparation and 16.4 s on reopening; these are startup times, not frame times. Game data, saves and previous caches are retained. The ISO extractor is still experimental and is not enabled by this release.
+
 ## Combined rendering changes — v0.10.0.11
 
 The current release combines control-flow simplification for three exact pixel shader variants with independent depth/color clear grouping through dynamic rendering. Original clear values, rectangles and dependency checks are retained; unsupported work stays on the original path.

@@ -1,0 +1,22 @@
+--- /Users/mac/rexglue-sdk/src/ui/presenter.cpp	2026-10-13 14:13:27
++++ performance/present-limit-20261029/presenter.cpp	2026-10-29 12:47:51
+@@ -12,6 +12,8 @@
+ #include <algorithm>
+ #include <atomic>
+ #include <cctype>
++#include <cstdlib>
++#include "PresentLimit.h"
+ #include <utility>
+ 
+ #include <rex/assert.h>
+@@ -1310,6 +1312,10 @@
+     // lifecycle.
+     return PaintMode::kNone;
+   }
++  // Capped paints are coalesced on SDL's UI event queue, never delayed under
++  // the guest-output/graphics queue locks. The guest keeps producing normally.
++  if (grfs::present::ValidLimit(std::atoi(rex::cvar::GetFlagByName("grfs_present_limit").c_str())))
++    return PaintMode::kUIThreadOnRequest;
+   if (!REXCVAR_GET(host_present_from_non_ui_thread)) {
+     return PaintMode::kUIThreadOnRequest;
+   }

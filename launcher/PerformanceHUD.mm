@@ -1,93 +1,98 @@
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 #include <atomic>
+#include <cstdio>
 #include <mutex>
-#include <deque>
-#include <vector>
-#include <algorithm>
 #include <chrono>
+#include <deque>
 
-static std::atomic<bool> enabled{false};
-static std::mutex samplesMutex;
-static std::deque<double> samples;
-static NSView *hudView;
-static NSTextField *hudLabel;
-static NSTimer *hudTimer;
-static bool spanish;
-@interface GRFSPassThroughHUD : NSView @end
-@implementation GRFSPassThroughHUD
-- (NSView *)hitTest:(NSPoint)point { return nil; }
+static std::atomic<bool> metalHUDEnabled{false};
+static NSTimer *metalHUDTimer;
+static NSMapTable<CAMetalLayer *,NSNumber *> *appliedLayers;
+
+static std::mutex guestLock;
+static std::deque<double> guestTimes;
+static double lastGuest=0;
+static std::atomic<bool> hudSpanish{false};
+@interface GRFSGuestLabel : NSTextField
 @end
-static double Now() {
-    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+@implementation GRFSGuestLabel
+- (NSView *)hitTest:(NSPoint)p { return nil; }
+@end
+static NSMapTable<NSWindow *,GRFSGuestLabel *> *guestLabels;
+static BOOL HasMetal(CALayer *layer) {
+ if([layer isKindOfClass:CAMetalLayer.class])return YES;
+ for(CALayer *child in layer.sublayers)if(HasMetal(child))return YES;
+ return NO;
+}
+static BOOL ViewHasMetal(NSView *view){if(HasMetal(view.layer))return YES;for(NSView *v in view.subviews)if(ViewHasMetal(v))return YES;return NO;}
+
+static double GuestNow() { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
+// Counts guest swap requests, not guaranteed unique displayed images.
+static NSString *GuestText() {
+    const double now=GuestNow(); double last; size_t count;
+    { std::lock_guard<std::mutex> guard(guestLock);
+      while(!guestTimes.empty() && guestTimes.front()<now-1.0)guestTimes.pop_front();
+      count=guestTimes.size();last=lastGuest; }
+    if(!last)return hudSpanish.load()?@"JUEGO: esperando cuadros\nMetal cuenta presentaciones":@"GAME: waiting for frames\nMetal counts presentations";
+    const double age=now-last;
+    return [NSString stringWithFormat:hudSpanish.load()?@"JUEGO: %zu envios/s (ultimo segundo)\nSin envio nuevo: %.2f s\nNo equivale a cuadros unicos de pantalla":@"GAME: %zu submissions/s (last second)\nNo new submission: %.2f s\nNot unique displayed frames",count,age];
 }
 extern "C" __attribute__((visibility("default"))) void GRFSRecordGuestSwap(void) {
-    if (!enabled.load(std::memory_order_relaxed)) return;
-    const double now = Now();
-    std::lock_guard<std::mutex> lock(samplesMutex);
-    samples.push_back(now);
-    while (samples.size() > 240 || (!samples.empty() && now - samples.front() > 2)) samples.pop_front();
+    const double stamp=GuestNow();
+    { std::lock_guard<std::mutex> guard(guestLock);lastGuest=stamp;guestTimes.push_back(stamp);while(!guestTimes.empty() && guestTimes.front()<stamp-1.0)guestTimes.pop_front(); }
+    static FILE *trace=[](){const char *p=getenv("GRFS_EDRAM_FRAME_TRACE");return p?fopen(p,"a"):nullptr;}();
+    if (!trace) return;
+    static std::mutex lock;
+    const double now=std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    std::lock_guard<std::mutex> guard(lock);
+    fprintf(trace,"%.9f\n",now);fflush(trace);
 }
-static void UpdateHUD() {
-    NSWindow *game = nil;
-    for (NSWindow *w in NSApp.windows) {
-        if (w.visible && [w.title hasPrefix:@"Ghost Recon Future Soldier"]) { game = w; break; }
-    }
-    if (!game) return;
-    if (hudView.superview != game.contentView) {
-        [hudView removeFromSuperview];
-        [game.contentView addSubview:hudView positioned:NSWindowAbove relativeTo:nil];
-    }
-    NSRect bounds = game.contentView.bounds;
-    hudView.frame = NSMakeRect(12, MAX(12, bounds.size.height - 92), 355, 80);
-    std::vector<double> intervals;
-    double first = 0, last = 0;
-    {
-        std::lock_guard<std::mutex> lock(samplesMutex);
-        if (samples.size() >= 2) {
-            first = samples.front(); last = samples.back();
-            for (size_t i=1;i<samples.size();++i) intervals.push_back((samples[i]-samples[i-1])*1000);
+static void ApplyLayer(CALayer *layer,BOOL show) {
+    if (!layer) return;
+    if ([layer isKindOfClass:CAMetalLayer.class]) {
+        CAMetalLayer *metal=(CAMetalLayer *)layer;
+        NSNumber *previous=[appliedLayers objectForKey:metal];
+        if (!previous || previous.boolValue!=show) {
+            NSMutableDictionary *properties=[metal.developerHUDProperties mutableCopy] ?: [NSMutableDictionary dictionary];
+            if(show) properties[@"mode"]=@"default";
+            else [properties removeObjectForKey:@"mode"];
+            metal.developerHUDProperties=properties;
+            [appliedLayers setObject:@(show) forKey:metal];
+            if(getenv("GRFS_HUD_TRACE"))fprintf(stderr,"[GRFS METAL HUD] enabled=%d alignment=topright layer=%p\n",show,metal);
         }
     }
-    NSString *title = spanish ? @"GRFS // RENDIMIENTO" : @"GRFS // PERFORMANCE";
-    if (intervals.empty() || Now() - last > 1) {
-        hudLabel.stringValue = [NSString stringWithFormat:@"%@\n%@\n%@",title,
-            spanish ? @"Sin cuadros recientes" : @"No recent game swaps",
-            spanish ? @"No cuenta redibujados de interfaz" : @"Excludes UI redraws"];
-        return;
-    }
-    const double fps = intervals.size() / (last - first);
-    const double mean = (last - first)*1000/intervals.size();
-    std::sort(intervals.begin(), intervals.end());
-    const double p95 = intervals[(intervals.size()-1)*95/100];
-    if (getenv("GRFS_HUD_TRACE")) fprintf(stderr,"[GRFS HUD] swaps/s=%.2f mean_ms=%.2f p95_ms=%.2f\n",fps,mean,p95);
-    hudLabel.stringValue = [NSString stringWithFormat:@"%@\n%.1f %@ | %.1f ms | p95 %.1f ms\n%@",title,fps,
-        spanish ? @"envios/s" : @"swaps/s", mean,p95,
-        spanish ? @"Solicitudes del juego; no FPS de pantalla" : @"Game requests; not display FPS"];
+    for(CALayer *child in layer.sublayers)ApplyLayer(child,show);
 }
-extern "C" __attribute__((visibility("default"))) void GRFSSetPerformanceHUD(int show, int es) {
-    enabled.store(show != 0, std::memory_order_relaxed);
-    { std::lock_guard<std::mutex> lock(samplesMutex); samples.clear(); }
+static void ApplyView(NSView *view,BOOL show) {
+    ApplyLayer(view.layer,show);
+    for(NSView *child in view.subviews)ApplyView(child,show);
+}
+static void UpdateMetalHUD() {
+    const BOOL show=metalHUDEnabled.load(std::memory_order_relaxed);
+    if(!guestLabels)guestLabels=[NSMapTable weakToStrongObjectsMapTable];
+    for(NSWindow *window in NSApp.windows){
+        NSView *root=window.contentView;ApplyView(root,show);
+        if(!ViewHasMetal(root))continue;
+        GRFSGuestLabel *label=[guestLabels objectForKey:window];
+        if(!label){label=[[GRFSGuestLabel alloc]initWithFrame:NSZeroRect];label.editable=NO;label.selectable=NO;label.bezeled=NO;label.drawsBackground=YES;label.backgroundColor=[NSColor colorWithWhite:0 alpha:.85];label.textColor=NSColor.whiteColor;label.font=[NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightMedium];[guestLabels setObject:label forKey:window];}
+        if(label.superview!=root)[root addSubview:label positioned:NSWindowAbove relativeTo:nil];
+        CGFloat w=MIN(340.0,MAX(100.0,root.bounds.size.width-16));
+        CGFloat y=root.isFlipped?260:root.bounds.size.height-330;
+        label.frame=NSMakeRect(MAX(8.0,root.bounds.size.width-w-8),MAX(8.0,y),w,70);
+        label.stringValue=GuestText();label.hidden=!show;
+    }
+}
+extern "C" __attribute__((visibility("default"))) void GRFSSetPerformanceHUD(int show,int spanish) {
+    hudSpanish.store(spanish!=0);
+    metalHUDEnabled.store(show!=0,std::memory_order_relaxed);
     dispatch_async(dispatch_get_main_queue(), ^{
-        spanish = es != 0;
-        [hudTimer invalidate]; hudTimer = nil;
-        [hudView removeFromSuperview];
-        if (!show) return;
-        if (!hudView) {
-            hudView = [[GRFSPassThroughHUD alloc] initWithFrame:NSMakeRect(0,0,355,80)];
-            hudView.wantsLayer = YES;
-            hudView.layer.backgroundColor = [NSColor colorWithRed:.02 green:.06 blue:.08 alpha:.88].CGColor;
-            hudView.layer.borderWidth = 1;
-            hudView.layer.borderColor = [NSColor colorWithRed:.2 green:.7 blue:.8 alpha:.7].CGColor;
-            hudLabel = [NSTextField labelWithString:@""];
-            hudLabel.frame = NSMakeRect(10,8,335,64);
-            hudLabel.font = [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightMedium];
-            hudLabel.textColor = [NSColor colorWithRed:.75 green:.95 blue:1 alpha:1];
-            hudLabel.maximumNumberOfLines = 3;
-            [hudView addSubview:hudLabel];
+        if(!appliedLayers)appliedLayers=[NSMapTable weakToStrongObjectsMapTable];
+        UpdateMetalHUD();
+        if(!metalHUDTimer){
+            // Also apply to new layers after fullscreen/swapchain recreation.
+            metalHUDTimer=[NSTimer timerWithTimeInterval:.25 repeats:YES block:^(NSTimer *timer){UpdateMetalHUD();}];
+            [NSRunLoop.mainRunLoop addTimer:metalHUDTimer forMode:NSRunLoopCommonModes];
         }
-        UpdateHUD();
-        hudTimer = [NSTimer timerWithTimeInterval:.25 repeats:YES block:^(NSTimer *timer) { UpdateHUD(); }];
-        [NSRunLoop.mainRunLoop addTimer:hudTimer forMode:NSRunLoopCommonModes];
     });
 }

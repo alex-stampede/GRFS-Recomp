@@ -1,0 +1,58 @@
+--- /Users/mac/rexglue-sdk/src/ui/window_sdl.cpp	2026-10-13 14:13:27
++++ performance/present-limit-20261029/window_sdl.cpp	2026-10-29 12:47:51
+@@ -16,6 +16,10 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <cstring>
++#include <mutex>
++#include <unordered_map>
++#include <memory>
++#include "PresentLimit.h"
+ #include <filesystem>
+ 
+ #define UTF_CPP_CPLUSPLUS 201703L  // -fno-char8_t
+@@ -43,6 +47,15 @@
+ namespace rex::ui {
+ 
+ namespace {
++std::mutex grfs_paint_times_mutex;
++std::unordered_map<uint32_t,uint64_t> grfs_paint_times;
++unsigned GrfsPresentationLimit(){return grfs::present::ValidLimit(std::atoi(rex::cvar::GetFlagByName("grfs_present_limit").c_str()));}
++Uint64 SDLCALL GrfsDeferredPaint(void* data,SDL_TimerID,Uint64){
++ std::unique_ptr<SDL_Event> event(static_cast<SDL_Event*>(data));
++ // SDL window IDs are resolved at delivery; never retain a destroyed Window pointer.
++ SDL_PushEvent(event.get());return 0;
++}
++
+ 
+ uint32_t ResolveWindowWidth(uint32_t requested_width) {
+   if (REXCVAR_GET(window_width) > 0) {
+@@ -221,6 +234,7 @@
+     cursor_hide_timer_ = 0;
+   }
+   if (sdl_window_) {
++    {std::lock_guard<std::mutex> lock(grfs_paint_times_mutex);grfs_paint_times.erase(sdl_window_id_);}
+     sdl_app_context().UnregisterWindow(sdl_window_id_);
+     SDL_DestroyWindow(sdl_window_);
+     sdl_window_ = nullptr;
+@@ -431,10 +445,20 @@
+   SDL_Event event{};
+   event.type = sdl_app_context().paint_event_type();
+   event.user.windowID = sdl_window_id_;
++  uint64_t delay=0;
++  {std::lock_guard<std::mutex> lock(grfs_paint_times_mutex);
++   auto found=grfs_paint_times.find(sdl_window_id_);
++   if(found!=grfs_paint_times.end())delay=grfs::present::Delay(SDL_GetTicksNS(),found->second,GrfsPresentationLimit());}
++  if(delay){
++    auto* deferred=new SDL_Event(event);
++    if(SDL_AddTimerNS(delay,GrfsDeferredPaint,deferred))return;
++    delete deferred; // Timer allocation failed: preserve the original repaint path.
++  }
+   SDL_PushEvent(&event);
+ }
+ 
+ void WindowSDL::HandlePaintEvent() {
++  {std::lock_guard<std::mutex> lock(grfs_paint_times_mutex);grfs_paint_times[sdl_window_id_]=SDL_GetTicksNS();}
+   paint_pending_.store(false, std::memory_order_release);
+   OnPaint();
+ }
