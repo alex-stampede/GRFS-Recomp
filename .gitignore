@@ -22,3 +22,10 @@ Game/
 
 diagnostics/
 launcher/preview/
+
+# Contributor builds, Python bytecode and game-derived shader caches
+.build/
+__pycache__/
+*.pyc
+*.xsh
+*.xpso

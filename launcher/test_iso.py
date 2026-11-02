@@ -1,6 +1,6 @@
 from pathlib import Path
-import tempfile,struct,subprocess
-binary='/private/tmp/grfs-launcher-build'
+import tempfile,struct,subprocess,os
+binary=os.environ.get('GRFS_TEST_LAUNCHER_BINARY','/private/tmp/grfs-launcher-build')
 with tempfile.TemporaryDirectory() as temp:
     root=Path(temp)
     def make(name='hello.bin', bad=False, partition=0):

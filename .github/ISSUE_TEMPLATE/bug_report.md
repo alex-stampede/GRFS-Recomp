@@ -1,25 +1,23 @@
 ---
 name: Bug report
-about: Report a crash, visual issue, installation problem, or updater failure
-labels: ''
+about: Report graphics, controls, installation or other functional problems
+title: "[Bug] "
 ---
 
-## Environment
-- Mac model / chip:
-- macOS version:
-- GRFS-Recomp release:
-- Mode / mission / map:
+**Build and environment**
+App version/tag, official or custom build, Mac/chip/RAM, macOS:
+For custom builds: commit, SDK/runtime source and changed settings:
 
-## What happened?
+**Reproduction**
+Mode/mission/checkpoint or Gunsmith weapon/accessories:
+Steps, expected result, actual result:
+Does it reproduce after reopening? Before/after scene transitions?
+Normal/NVG view, output cap and window/fullscreen:
 
-## Steps to reproduce
-1.
-2.
-3.
+**Evidence**
+Screenshots/video and relevant redacted log excerpts:
+If startup is slow, how long did you wait and did it eventually advance?
 
-## Expected behavior
-
-## Screenshots or logs
-Attach relevant screenshots and reviewed excerpts from `~/Library/Application Support/GRFS Recompiled/Logs/`.
-
-**Do not upload ISOs, original executables, game data, private keys, or personal information.**
+**Privacy and game data**
+Review attachments first. Do not upload ISOs, XEX files, extracted assets,
+generated game implementations, shader/pipeline caches, saves, tokens or personal paths.

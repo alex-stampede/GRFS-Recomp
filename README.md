@@ -18,6 +18,7 @@
   <a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> ·
   <a href="#getting-started">Getting started</a> ·
   <a href="#project-status">Project status</a> ·
+  <a href="CONTRIBUTING.md"><strong>Contribute</strong></a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="#support-the-project">Support the project</a> ·
   <a href="https://github.com/alex-stampede/GRFS-Recomp/issues/new/choose">Report an issue</a>
@@ -34,6 +35,17 @@ GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to App
 
 > [!WARNING]
 > **This is an experimental release.** Campaign and Guerrilla have been playable on the development Mac, but visual bugs remain. The current binary requires **macOS 27.0 or newer** and is developed on a **Mac mini M4 Pro with 24 GB of memory**. The owner also reports successful testing on a **MacBook Air M3 with 8 GB of memory**. It is ad-hoc signed, without Apple Developer ID signing or notarization.
+
+## Contributors wanted
+
+Help with **graphics correctness, Apple Silicon performance, shader/pipeline handling and reproducible builds** is welcome. This is a heavily AI-assisted experimental project; reviewed code, reproducible reports and small, tested fixes are valuable contributions. Fork the repo and open a pull request—no write access is needed.
+
+Start with **[CONTRIBUTING.md](CONTRIBUTING.md)**, [developer setup](docs/BUILDING.md), the [architecture / patch map](docs/ARCHITECTURE.md), [testing guide](docs/TESTING.md), and [open tasks](https://github.com/alex-stampede/GRFS-Recomp/issues).
+
+> [!WARNING]
+> **Current investigation, November 2:** later M3 tests reproduced incorrect materials and stretched geometry, including with empty caches and general SPIR-V optimization disabled. Historical clean playtests below do not mean these issues are fixed. See [current development status](docs/DEVELOPMENT_STATUS.md). The latest published binary remains v0.10.0.12; local diagnostic variants are not new releases.
+
+**Build boundary:** the launcher can be rebuilt using a compatible release runtime, and host tests need no game assets. A verified full ISO-to-runtime build remains a contributor task. See [BUILDING.md](docs/BUILDING.md) before starting SDK work.
 
 ## Highlights
 
@@ -250,14 +262,15 @@ All persistent data lives under:
 | :--- | :--- |
 | `Game/` | Extracted game files |
 | `UserData/` | Profile and save data |
-| `CacheCombinedFlowV1/` | Current Xenos shader storage; pipelines created on demand |
+| `Diagnostics/CacheCatalogV1/` | v0.10.0.12 local shader/pipeline catalog and compatible driver cache |
+| `CacheCombinedFlowV1/` | v0.10.0.11 shader storage, retained for rollback |
 | `CacheTextureExponentV1/` | Previous version cache, retained for rollback |
 | `Cache/`, `CachePersistent/` | Earlier caches, retained without deletion |
 | `Logs/` | Game and console logs |
 | `Updates/` | Downloaded and staged app updates |
 | `Backups/` | One previous app version, kept outside Applications |
 
-**Shader storage is not a complete precompiled shader pack.** The runtime retains guest shader microcode but builds pipelines on demand; new scenes and later sessions may still trigger compilation. Installation reaching 100% does not mean every shader is compiled. Saves from earlier development prototypes are not automatically migrated.
+**Shader storage is not a complete precompiled shader pack.** v0.10.0.12 prepares known compatible records at startup; new variants and later sessions may still trigger compilation. Installation reaching 100% does not mean every shader is compiled. Saves from earlier development prototypes are not automatically migrated.
 
 ## Known issues
 
@@ -271,6 +284,8 @@ Found a problem? **[Open an issue](https://github.com/alex-stampede/GRFS-Recomp/
 
 <details>
 <summary><strong>Building the launcher and repository layout</strong></summary>
+
+See **[developer setup](docs/BUILDING.md)** for the tested host-check command, launcher packaging workflow, and current full-build limitations.
 
 ### Build prerequisites
 

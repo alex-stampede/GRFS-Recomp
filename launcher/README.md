@@ -17,6 +17,8 @@ Native AppKit XDVDFS installer and signed updater. See the root [README](../READ
 
 ## Verification
 
+For the complete game-free host suite, run `python3 scripts/check_contributor.py` from the repository root. It compiles all current Swift sources and runs tests in temporary directories. See [developer setup](../docs/BUILDING.md) and [validation requirements](../docs/TESTING.md). The manual commands below describe individual checks.
+
 Compile `main.swift`, `Launcher.swift`, `Updater.swift`, `LauncherTheme.swift`, and `LegacyBackups.swift` with AppKit and CryptoKit to `/private/tmp/grfs-launcher-build`, then run `python3 launcher/test_iso.py`.
 
 Compile `UpdateHelper.swift` with AppKit to `/private/tmp/grfs-update-helper`, then run `python3 launcher/test_updates.py`.
