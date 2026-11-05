@@ -1,0 +1,90 @@
+--- a/src/graphics/vulkan/command_processor.cpp
++++ b/src/graphics/vulkan/command_processor.cpp
+@@ -4289,17 +4289,29 @@
+   const ui::vulkan::VulkanDevice::Functions& dfn = vulkan_device->functions();
+   const VkDevice device = vulkan_device->device();
+ 
+-  VkBuffer readback_buffer = VK_NULL_HANDLE;
+-  VkDeviceMemory readback_memory = VK_NULL_HANDLE;
+-  uint32_t readback_memory_type = UINT32_MAX;
+-  VkDeviceSize readback_memory_size = 0;
+-  if (!ui::vulkan::util::CreateDedicatedAllocationBuffer(
+-          vulkan_device, total_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+-          ui::vulkan::util::MemoryPurpose::kReadback, readback_buffer, readback_memory,
+-          &readback_memory_type, &readback_memory_size)) {
+-    REXGPU_ERROR("Failed to create a Vulkan memexport readback buffer");
+-    return true;
+-  }
++  // Dedicated synchronous slot: reuse only after the preceding full readback
++  // completed. The existing eviction/shutdown paths own these resources.
++  ReadbackBuffer& pooled = memexport_readback_buffers_[UINT64_MAX];
++  pooled.last_used_frame = frame_current_;
++  if (pooled.buffers[0] == VK_NULL_HANDLE || pooled.sizes[0] < total_size) {
++    if (pooled.buffers[0] != VK_NULL_HANDLE) {
++      if (!AwaitAllQueueOperationsCompletion()) return true;
++      dfn.vkDestroyBuffer(device, pooled.buffers[0], nullptr);
++      dfn.vkFreeMemory(device, pooled.memories[0], nullptr);
++      pooled.buffers[0] = VK_NULL_HANDLE; pooled.memories[0] = VK_NULL_HANDLE;
++      pooled.sizes[0] = 0;
++    }
++    const uint32_t capacity = AlignReadbackBufferSize(total_size);
++    if (!ui::vulkan::util::CreateDedicatedAllocationBuffer(
++        vulkan_device, capacity, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
++        ui::vulkan::util::MemoryPurpose::kReadback, pooled.buffers[0], pooled.memories[0])) {
++      REXGPU_ERROR("Failed to allocate synchronous memexport pool");
++      return true;
++    }
++    pooled.sizes[0] = capacity;
++  }
++  const VkBuffer readback_buffer = pooled.buffers[0];
++  const VkDeviceMemory readback_memory = pooled.memories[0];
+ 
+   shared_memory_->Use(VulkanSharedMemory::Usage::kRead);
+   SubmitBarriers(true);
+@@ -4320,8 +4332,6 @@
+ 
+   if (!AwaitAllQueueOperationsCompletion()) {
+     REXGPU_ERROR("Failed to await completion of Vulkan memexport readback");
+-    dfn.vkDestroyBuffer(device, readback_buffer, nullptr);
+-    dfn.vkFreeMemory(device, readback_memory, nullptr);
+     return true;
+   }
+ 
+@@ -4329,20 +4339,17 @@
+   if (dfn.vkMapMemory(device, readback_memory, 0, VK_WHOLE_SIZE, 0, &readback_mapping) !=
+       VK_SUCCESS) {
+     REXGPU_ERROR("Failed to map a Vulkan memexport readback buffer");
+-    dfn.vkDestroyBuffer(device, readback_buffer, nullptr);
+-    dfn.vkFreeMemory(device, readback_memory, nullptr);
+     return true;
+   }
+ 
+-  if (!(vulkan_device->memory_types().host_coherent & (uint32_t(1) << readback_memory_type))) {
+-    VkMappedMemoryRange readback_memory_range = {};
+-    readback_memory_range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+-    readback_memory_range.memory = readback_memory;
+-    readback_memory_range.offset = 0;
+-    readback_memory_range.size = std::min(
+-        rex::round_up(VkDeviceSize(total_size), vulkan_device->properties().nonCoherentAtomSize),
+-        readback_memory_size);
+-    dfn.vkInvalidateMappedMemoryRanges(device, 1, &readback_memory_range);
++  VkMappedMemoryRange mapped_range = {};
++  mapped_range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
++  mapped_range.memory = readback_memory;
++  mapped_range.offset = 0;
++  mapped_range.size = VK_WHOLE_SIZE;
++  if (dfn.vkInvalidateMappedMemoryRanges(device, 1, &mapped_range) != VK_SUCCESS) {
++    dfn.vkUnmapMemory(device, readback_memory);
++    return true;
+   }
+ 
+   const uint8_t* readback_bytes = reinterpret_cast<const uint8_t*>(readback_mapping);
+@@ -4352,8 +4359,6 @@
+     readback_bytes += memexport_range.size_bytes;
+   }
+   dfn.vkUnmapMemory(device, readback_memory);
+-  dfn.vkDestroyBuffer(device, readback_buffer, nullptr);
+-  dfn.vkFreeMemory(device, readback_memory, nullptr);
+   return true;
+ }
+ 

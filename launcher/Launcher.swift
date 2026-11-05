@@ -218,18 +218,18 @@ final class Launcher: NSObject, NSApplicationDelegate {
         guard child == nil else { return }
         do {
             let runtime = Bundle.main.resourceURL!.appendingPathComponent("Game.app/Contents/MacOS")
-            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("Diagnostics/CacheCatalogV1"), logs = home.appendingPathComponent("Logs")
+            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("Diagnostics/CacheSyncPoolV1-" + UUID().uuidString), logs = home.appendingPathComponent("Logs")
             let preparationLogs=logs.appendingPathComponent("Preparation-"+UUID().uuidString)
             for path in [user,cache,logs,preparationLogs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
             // Prepare known portable records using the tested catalog path.
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime
             // Match the M3-tested path: on-demand pipelines, bounded draw extents.
             // Keep synchronous gameplay compilation and persistent shader storage.
-            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+preparationLogs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--vulkan_pipeline_creation_threads=1","--execute_unclipped_draw_vs_on_cpu=true","--log_level=info"]
+            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+preparationLogs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--readback_memexport=true","--readback_memexport_fast=false","--clear_memory_page_state=true","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--vulkan_pipeline_creation_threads=1","--execute_unclipped_draw_vs_on_cpu=true","--log_level=info"]
             let restart = RestartRequest(directory: logs)
             var env = ProcessInfo.processInfo.environment
             env.merge(restart.environment) { _, new in new }
-            env["GRFS_SAFE_PREWARM"]="1"
+            env["GRFS_SAFE_PREWARM"]="0"
             let candidates=["CacheCombinedFlowV1","CacheTextureExponentV1","CachePersistent","CachePersistentTest","Cache","Diagnostics/CachePrewarmV1","Diagnostics/CacheVisionPassMapV1"]
             var catalogFolders=Set(candidates.map{home.appendingPathComponent($0+"/shaders/shareable").path})
             // Previous diagnostic sessions also contain portable records. The SDK validates
@@ -251,16 +251,16 @@ final class Launcher: NSObject, NSApplicationDelegate {
             env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
             // Optimize translated modules; avoid the problematic stored-pipeline preload.
-            if env["GRFS_SPIRV_OPTIMIZE"] == nil { env["GRFS_SPIRV_OPTIMIZE"] = "1" }
+            env["GRFS_SPIRV_OPTIMIZE"] = "0"
             env["GRFS_SKIP_PIPELINE_PRELOAD"] = "1"
             env["GRFS_FORWARD_FLOW"] = "1"
-            env["GRFS_CLEAR_PAIR"] = "1"
+            env.removeValue(forKey: "GRFS_CLEAR_PAIR")
             // Production package omits diagnostic file writes and GPU stage probes.
             env.removeValue(forKey: "GRFS_CLEAR_STATS")
             // Presence enables eager acquisition, even for a value of "0".
             env.removeValue(forKey: "GRFS_EAGER_DRAWABLE")
             env["MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"] = "1"
-            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.12"
+            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.13"
             // Enable the Metal HUD facility; the F5 callback controls each layer
             // live. These are presentation statistics, not unique game frames.
             env["MTL_HUD_ENABLED"] = "1"
@@ -286,12 +286,14 @@ final class Launcher: NSObject, NSApplicationDelegate {
             status.stringValue = "Starting game and loading known shaders…"
             try p.run(); child = p; launched = true; button.isEnabled = false
             window.orderOut(nil); NSApp.setActivationPolicy(.accessory)
-            shaderPreparation.process=p;shaderPreparation.showPreparation(preparationLogs)
+            shaderPreparation.process=p
         } catch { shaderPreparation.stop();alert(error) }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if busy || child != nil {
-            let a = NSAlert(); a.messageText = busy ? "Installation is in progress." : "Close the game before quitting the launcher."; a.runModal(); return .terminateCancel
+        if child != nil { return .terminateCancel }
+        if busy {
+            let a = NSAlert(); a.messageText = "Installation is in progress."; a.runModal()
+            return .terminateCancel
         }
         return .terminateNow
     }

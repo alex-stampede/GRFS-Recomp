@@ -332,3 +332,7 @@ Future projects are exploratory and depend on technical feasibility. Donations a
 Original launcher and release tooling: **[MIT](LICENSE)**. Third-party components retain their own licenses, provided in [`THIRD_PARTY_LICENSES/`](THIRD_PARTY_LICENSES/) and inside the app.
 
 Ghost Recon Future Soldier and its artwork belong to their respective rights holders. This is an independent community project, not affiliated with or endorsed by Ubisoft, Microsoft, or the upstream runtime projects. The launcher license does not grant rights to the game or its assets.
+
+### v0.10.0.13 rendering update
+
+Synchronous shader memory readback with reusable staging buffers was tested on M3 in Gunsmith, campaign and Guerrilla with no observed graphical errors and reported steadier performance. Additional campaign saves remain unresolved. Startup catalog prewarming is disabled and shader caches are isolated per launch. See [release details](docs/RELEASE-v0.10.0.13.md).
