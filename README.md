@@ -1,192 +1,50 @@
 <p align="center">
   <img src="docs/images/banner.svg" alt="Ghost Recon Future Soldier Recomp — Native on Apple Silicon" width="100%">
 </p>
-
 <p align="center">
-  <a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><img src="https://img.shields.io/github/v/release/alex-stampede/GRFS-Recomp?style=flat-square&amp;label=download&amp;color=72daca" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%20ARM64-142d3a?style=flat-square&amp;logo=apple&amp;logoColor=white" alt="macOS ARM64">
+  <a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><img src="https://img.shields.io/github/v/release/alex-stampede/GRFS-Recomp?style=flat-square&label=download&color=72daca" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/renderer-Native%20Metal-142d3a?style=flat-square&logo=apple&logoColor=white" alt="Native Metal">
   <img src="https://img.shields.io/badge/status-experimental-e6b766?style=flat-square" alt="Experimental">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/launcher-MIT-699dca?style=flat-square" alt="Launcher license: MIT"></a>
 </p>
+<p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
+<p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
-<p align="center">
-  <strong>A community-built native macOS recompilation of Ghost Recon Future Soldier for Xbox 360.</strong><br>
-  Local ISO installation. Campaign and Guerrilla. Updates that keep your saves.
-</p>
+## Native Metal — 2.1.2
 
-<p align="center">
-  <a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> ·
-  <a href="#getting-started">Getting started</a> ·
-  <a href="#project-status">Project status</a> ·
-  <a href="CONTRIBUTING.md"><strong>Contribute</strong></a> ·
-  <a href="CHANGELOG.md">Changelog</a> ·
-  <a href="#support-the-project">Support the project</a> ·
-  <a href="https://github.com/alex-stampede/GRFS-Recomp/issues/new/choose">Report an issue</a>
-</p>
+The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alongside static PowerPC recompilation and the ReXGlue runtime. Xbox 360 GPU shaders are translated through SPIR-V and SPIRV-Cross into Metal shaders. The active 2.x rendering path does **not** run through Vulkan/MoltenVK; that describes the older 0.10.x builds.
 
----
+**2.1.2 simplifies display settings:** output uses the native drawable size and host presentation is unlimited. The output-resolution cap and FPS-limit selectors have been removed from F5; older saved cap settings are overridden on launch. Fullscreen/windowed selection remains. The Metal HUD switch explicitly enables or disables Apple's HUD, without the separate game-counter overlay.
 
-## The project
-
-GRFS-Recomp brings the Xbox 360 version of **Ghost Recon Future Soldier** to Apple Silicon through static PowerPC recompilation. It uses the **ReXGlue** runtime and **Xenos** graphics backend, with Vulkan translated to Metal by **MoltenVK**. The download bundles the runtime and a native AppKit launcher; players do not need to install the SDK.
+The shader-lookup and gamma protections from 2.1.1 are retained. Experimental GPU completion waits used to investigate flicker are **not enabled** in this release. Black flashes and material patches remain under investigation; this is not a graphics-fix release.
 
 > [!IMPORTANT]
-> **Bring your own game.** You must provide your own compatible Xbox 360 ISO. The download does not include a disc image or the original game data, textures, audio, or cinematics.
+> Supply your own compatible **Xbox 360 ISO**. No ISO, original game executable, textures, audio or cinematics are included. Installation and verification happen locally; your ISO is not uploaded.
 
 > [!WARNING]
-> **This is an experimental release.** Campaign and Guerrilla have been playable on the development Mac, but visual bugs remain. The current binary requires **macOS 27.0 or newer** and is developed on a **Mac mini M4 Pro with 24 GB of memory**. The owner also reports successful testing on a **MacBook Air M3 with 8 GB of memory**. It is ad-hoc signed, without Apple Developer ID signing or notarization.
-
-## Contributors wanted
-
-Help with **graphics correctness, Apple Silicon performance, shader/pipeline handling and reproducible builds** is welcome. This is a heavily AI-assisted experimental project; reviewed code, reproducible reports and small, tested fixes are valuable contributions. Fork the repo and open a pull request—no write access is needed.
-
-Start with **[CONTRIBUTING.md](CONTRIBUTING.md)**, [developer setup](docs/BUILDING.md), the [architecture / patch map](docs/ARCHITECTURE.md), [testing guide](docs/TESTING.md), and [open tasks](https://github.com/alex-stampede/GRFS-Recomp/issues).
-
-> [!WARNING]
-> **Current investigation, November 2:** later M3 tests reproduced incorrect materials and stretched geometry, including with empty caches and general SPIR-V optimization disabled. Historical clean playtests below do not mean these issues are fixed. See [current development status](docs/DEVELOPMENT_STATUS.md). The latest published binary remains v0.10.0.12; local diagnostic variants are not new releases.
-
-**Build boundary:** the launcher can be rebuilt using a compatible release runtime, and host tests need no game assets. A verified full ISO-to-runtime build remains a contributor task. See [BUILDING.md](docs/BUILDING.md) before starting SDK work.
-
-## Highlights
-
-- **Native Apple Silicon runtime** with a bundled graphics backend.
-- **Campaign and Guerrilla** with campaign creation, saving, and continuation observed working.
-- **Install from your ISO** with a 0–100% progress bar and file validation.
-- **Open and play** after installation; the installer window hides while the game runs.
-- **Optional in-app updates** from GitHub Releases, with an Ed25519-signed manifest and SHA-256 verification.
-- **Persistent saves and shader storage** outside the app, preserved when updating.
-- **A previous-version backup** when the updater replaces the app.
-
-## Shader preparation and display controls — v0.10.0.12
-
-Known compatible shader/pipeline records are collected locally and prepared before gameplay, with a persistent GPU-compatible driver cache. The dark GRFS progress panel follows the game display and can appear over native fullscreen; it closes when preparation finishes or game submissions begin. First preparation may take several minutes. This prepares known variants, not every shader or pipeline from the ISO.
-
-F5 adds 30/60/120/unlimited host presentation limits. These do not unlock game logic or guarantee that many unique game frames. Metal HUD appears on the right, with a separate game-submission counter below it to expose stalls while Metal repeats an image. App and Dock icons use a rounded black background.
-
-The owner reported better perceived performance and reduced distant-model flicker in the catalog trial. No controlled M3 FPS gain is claimed. On M4 Pro, the same 1,121-pipeline catalog took 218.6 s on its first preparation and 16.4 s on reopening; these are startup times, not frame times. Game data, saves and previous caches are retained. The ISO extractor is still experimental and is not enabled by this release.
-
-## Combined rendering changes — v0.10.0.11
-
-The current release combines control-flow simplification for three exact pixel shader variants with independent depth/color clear grouping through dynamic rendering. Original clear values, rectangles and dependency checks are retained; unsupported work stays on the original path.
-
-The owner reported no visual bugs in the tested M3 combined build. Both shader targets and grouped clears were observed in the capture. The slow-scene captures remained around 13 game requests/s; these are not displayed FPS, and a controlled frame-rate improvement or 30 FPS is **not** claimed. First-use shader compilation can still cause pauses.
-
-`CacheCombinedFlowV1` keeps this shader variant separate from earlier caches. Game data and saves are unchanged. [Details and validation](docs/validation-combined-flow-20261028.md).
-
-## Graphics stability — v0.10.0.10
-
-This release corrects texture color exponent decoding and enables unclipped draw
-extent estimation to avoid excessive EDRAM transfer regions. The M3 owner verified
-Gunsmith, campaign and Guerrilla across repeat openings with correct visuals and
-reported smoother play. Disabling extent estimation reproduced geometry corruption;
-restoring it removed the observed corruption. No controlled FPS improvement is claimed.
-
-SPIRV-Tools optimization remains enabled with validated fallback and preserved
-precision/interfaces. Stored pipeline preload is bypassed while Xenos shader storage
-and in-process pipeline reuse remain active. Pipelines are created on demand;
-first-use compilation can still cause hitches. Experimental eager Metal drawable
-acquisition is disabled; queue submission and shader compilation remain synchronous.
-
-The new `CacheTextureExponentV1` namespace does not import older pipeline records.
-Earlier caches and save data are preserved. Mip0, MSAA, F5 settings, controls,
-native fullscreen/Game Mode and the installer remain in place.
-
-The owner validated the final packaged app on MacBook Air M3 and approved release.
-
-## Resolution and restart — v0.10.0.8
-
-Open **Extras → Options → F5**, choose **Fullscreen / Windowed** and an **Output resolution limit**, then
-**Save and restart**. Available limits are **1280×720**, **1600×900**,
-**1920×1080** (default), and **Native**. The launcher closes the game normally
-and relaunches it with the saved preferences. Ordinary exits and crashes do not
-trigger a restart.
-
-The cap also applies in native macOS fullscreen, retaining Game Mode support
-without changing the desktop display mode. It preserves aspect ratio and never
-upscales smaller windows: a 3420×2148 surface capped at 1080p uses 1719×1080.
-This controls presentation output, **not Xbox internal render-target resolution**.
-Mip0 remains enabled; dynamic mipmaps are a separate experiment. Lower output
-resolution is not a guarantee of 30 FPS; M3 performance remains scene-dependent.
-
-## Performance HUD and idle UI fix — v0.10.0.7
-
-Open **Extras → Options → F5 → Performance HUD**, then **Save settings** to
-remember your choice. It is off by default. The HUD shows **game swap requests
-per second**, their mean interval and p95 over a rolling two-second window.
-It excludes UI redraws, but it is not a GPU-completed, unique-image or simulation
-FPS counter. Apple's Metal HUD can count additional presentations of the same
-game image, so a value such as 200 FPS does not imply 200 game frames per second.
-
-PC Settings now detaches from the renderer while the original Options screen
-is closed. Previously its invisible dialog kept the host UI redraw loop active.
-A development-Mac startup check reduced host presentations from about 138/s to
-60/s while game requests remained around 30/s. **This is reduced redraw work,
-not a measured M3 gameplay FPS gain.** The owner verified F5, HUD toggling,
-saving settings and returning to gameplay. The v0.10.0.6 GPU/runtime, mip0,
-synchronous shaders, native fullscreen/Game Mode and installation flow are retained.
-
-## Shader cache update — v0.10.0.6
-
-This release fixes shader/pipeline storage being truncated on reopen on macOS.
-Existing shader storage is copied into `CachePersistent` without deleting the
-original; players who used the Game Mode cache test keep that warmed storage.
-The owner reports smoother revisited areas on MacBook Air M3. This is not an FPS
-or temperature benchmark. New effects can still compile shaders during play.
-Native fullscreen/Game Mode, synchronous compilation and current graphics settings
-are retained. No asynchronous rendering, FPS cap or geometry experiment is enabled.
-
-## In-game screenshots
-
-Current owner-provided captures from October 21, 2026. Campaign missions, the
-campaign Gunsmith / weapon selection screen, and Guerrilla are accessible and
-playable in the current port. These captures document tested sections; they do
-not establish that every mission or feature is complete. Visual issues remain.
-
-| Campaign | Campaign — drone view |
-| :---: | :---: |
-| ![Campaign gameplay](docs/images/gameplay/campaign.jpg) | ![Campaign drone reconnaissance](docs/images/gameplay/campaign-drone.jpg) |
-| **Campaign — Gunsmith / weapon selection** | **Campaign — takedown** |
-| ![Campaign Gunsmith and weapon selection](docs/images/gameplay/gunsmith.jpg) | ![Campaign takedown](docs/images/gameplay/campaign-takedown.jpg) |
-| **Guerrilla — stealth** | **Guerrilla — combat** |
-| ![Guerrilla stealth](docs/images/gameplay/guerrilla-stealth.jpg) | ![Guerrilla combat](docs/images/gameplay/guerrilla.jpg) |
+> Experimental, ad-hoc signed and not notarized. Current binaries require **Apple Silicon and macOS 27.0 or later**. Scene-dependent performance and graphical defects remain. Unlimited presentation does not unlock the game's simulation or guarantee 60 unique game frames per second.
 
 ## Getting started
 
-1. Download **[GRFS-Recompiled-macOS-arm64.zip](https://github.com/alex-stampede/GRFS-Recomp/releases/latest/download/GRFS-Recompiled-macOS-arm64.zip)** from the latest Release.
-2. Unzip it and drag **GRFS Recompiled.app** into **Applications**.
-3. Open the app and choose your compatible Xbox 360 `.iso`.
-4. Let the launcher verify and extract the files. The game starts when installation finishes.
-5. Next time, open the same app from Applications to launch the game directly.
+1. Download [GRFS-Recompiled-macOS-arm64.zip](https://github.com/alex-stampede/GRFS-Recomp/releases/latest/download/GRFS-Recompiled-macOS-arm64.zip).
+2. Unzip and move **GRFS Recompiled.app** to **Applications**.
+3. Open it and select your compatible Xbox 360 ISO. Let extraction and verification finish.
+4. After installation, open the same app to play. Existing installations can update without reinstalling the ISO.
+5. Open **Extras → Options → F5** (Fn+F5 on some keyboards) for PC settings. Use **Save settings** to retain changes, or **Save and restart** when required.
 
-The v0.10.0.3 launcher uses **English**, including update buttons and progress messages. Published versions through v0.10.0.2 still use Spanish. Installation happens locally; your ISO is not uploaded. It checks the two game executable hashes and the expected file names and sizes. Other editions or revisions may be rejected; see the [compatibility manifest](launcher/compatible-game.json).
-
-### Requirements
-
-| Component | Current requirement |
+| Requirement | Details |
 | :--- | :--- |
 | Mac | Apple Silicon / ARM64 |
-| macOS | **27.0 or later**, as required by the current binaries |
-| Game | Your own Xbox 360 ISO matching the compatibility manifest |
-| Storage | Space for the extracted game, shader storage, and temporary installation/update files |
-| Internet | Needed to download the app and check for updates; an existing installation can start without a successful update check |
+| macOS | 27.0 or later for current binaries |
+| Game | Own Xbox 360 ISO matching [the compatibility manifest](launcher/compatible-game.json) |
+| Development machine | Mac mini M4 Pro, 24 GB memory |
+| Additional testing | MacBook Air M3, 8 GB memory |
+| Storage | Extracted game plus temporary installation/update files and shader data |
 
-Intel Macs, Windows, Linux, other disc revisions, and online multiplayer are **not validated by this release**.
+The owner reports substantially smoother play with native output and unlimited presentation. This is user feedback, **not a controlled cross-device 60 FPS benchmark**. Intel Macs, other disc revisions and online multiplayer are not validated.
 
-## macOS Game Mode — v0.10.0.5
+## PC settings and controls
 
-The game now starts in native macOS fullscreen and declares Game Mode support.
-macOS manages activation: while fullscreen, open Game Overlay from the game icon
-in the menu bar to check its status. If you previously turned Game Mode off for
-GRFS, turn it back on there; macOS remembers this preference. Returning to windowed
-mode is still supported. See [Apple’s Game Mode guide](https://support.apple.com/en-us/105118).
-
-This update also applies the transparent GRFS skull directly to the running Dock
-icon. It preserves the v0.10.0.4 renderer and game code; experimental FPS caps,
-async profiles, cache fixes and geometry probes are not part of this release.
-
-## PC settings — new in v0.10.0.4
-
-Open **Extras → Options**, then click **PC Settings** or press **F5** (Fn+F5 on some Macs). Adjust mouse sensitivity, rebind keyboard/mouse buttons, and choose English, Spanish, or French menu text. Save and restart to apply a language change. Native audio and subtitle options remain available.
+F5 provides fullscreen/windowed preferences, mouse sensitivity, keyboard/mouse bindings, menu-language settings and **Enable Metal HUD**. Language changes require saving and restarting. The game's audio/subtitle options remain available. Native macOS fullscreen and Game Mode support are retained; macOS controls actual Game Mode activation.
 
 Select **Apply PC preset** to enable mouse look and these bindings:
 
@@ -227,112 +85,85 @@ The launcher enables keyboard-to-controller emulation. These are the current run
 
 Mouse-look is **off by default** in this build: use the arrow keys for the camera. Mouse clicks are not bound to the triggers by these defaults. Modifier matching is exact, so holding Shift, Control, or Option can suppress an unmodified key binding. The Guide button is unbound.
 
+
 ## Project status
 
-| Area | Current state |
+| Area | Status |
 | :--- | :--- |
-| Main menu and navigation | Working on the development Mac |
-| Campaign | Creation, gameplay into mission two, saving, and continuation observed working |
-| Guerrilla | Playable on the development Mac |
-| Audio and controls | Reported working during playtesting |
-| Graphics | Playable; cinematic flicker and scene-reload corruption remain |
-| Native macOS fullscreen | Entry and return to windowed mode confirmed working with the v0.10.0.3 fix on the development Mac |
-| Shader storage | Persistent; first-use and some startup compilation can still occur |
-| Updates | v0.10.0.1 → v0.10.0.2 upgrade and backup tested on the development Mac |
-| Development machine | Mac mini M4 Pro · 24 GB memory |
-| Additional tested machine | MacBook Air M3 · 8 GB memory — reported working by the owner |
+| Renderer | Native Metal in 2.x; legacy Vulkan/MoltenVK in 0.10.x |
+| Campaign | Gameplay and continuation tested; additional campaign save slots remain unresolved |
+| Gunsmith / firing range | Accessible; intermittent material defects remain |
+| Guerrilla | Playable in tested sections |
+| Controls | Keyboard/mouse playtested; controller behavior needs more hardware testing |
+| Display | Native output; unlimited host presentation; fullscreen/windowed support |
+| HUD | Apple's Metal HUD, enabled/disabled from F5 |
+| Updates | Signed manifest, SHA-256 verification and app replacement; persistent game/save folders retained |
+| Shaders | Compiled as needed; first-use pauses can still occur |
 
-The current renderer uses the **FBO** path and a **mip0 workaround** from the playable baseline. This improves the observed texture seams but is not a complete mipmap fix. No fixed frame-rate guarantee is made.
+## Known issues
 
-## Updates without reinstalling your game
+- Intermittent full-image black flashes occur on both tested Macs.
+- White/black patches or incorrect materials can appear on characters, weapons and in cinematics. Their cause is not yet confirmed.
+- New scenes/effects can trigger shader or pipeline compilation pauses.
+- Additional campaign saves do not consistently appear alongside the main campaign. Do not rely on multiple independent slots.
+- The mip0 workaround remains; underlying mipmap correctness is unfinished.
+- Metal HUD presentation FPS can include repeated images and must not be equated with simulation speed or unique game frames.
 
-When the launcher opens, it checks the latest public Release. If a newer build is available, you can choose **Download and update** or **Not now**. The English buttons are **“Download and update”** and **“Not now.”** Published versions through v0.10.0.2 show **“Descargar y actualizar”** and **“Ahora no.”**
+A diagnostic variant that waits for GPU writes reduced observed artifacts but also reduced performance. It is not the published fix. No depth-bias or mipmap change is claimed to solve these defects.
 
-Before replacement, it validates the signed manifest, downloaded ZIP checksum, app identity, build number, and code signature. A separate helper replaces the app and opens the new version. Starting with v0.10.0.3, one previous copy is kept in the launcher’s data folder, outside Applications; older versions left backup apps beside the launcher. If the app folder is not writable, the downloaded update is offered for manual installation.
+## In-game screenshots
 
-**Your extracted game, saves, and shader storage stay outside the app.** If GitHub is unavailable, the launcher continues normally. Earlier prototypes need one manual app replacement to gain the updater. The upgrade from v0.10.0.1 to v0.10.0.2 has been exercised on the development Mac, including replacement, previous-version backup, and game relaunch.
+Owner-provided captures from October 21, 2026 (earlier Vulkan builds). Campaign missions, the
+campaign Gunsmith / weapon selection screen, and Guerrilla are accessible and
+playable in the current port. These captures document tested sections; they do
+not establish that every mission or feature is complete. Visual issues remain.
 
-## Saves, shaders, and logs
+| Campaign | Campaign — drone view |
+| :---: | :---: |
+| ![Campaign gameplay](docs/images/gameplay/campaign.jpg) | ![Campaign drone reconnaissance](docs/images/gameplay/campaign-drone.jpg) |
+| **Campaign — Gunsmith / weapon selection** | **Campaign — takedown** |
+| ![Campaign Gunsmith and weapon selection](docs/images/gameplay/gunsmith.jpg) | ![Campaign takedown](docs/images/gameplay/campaign-takedown.jpg) |
+| **Guerrilla — stealth** | **Guerrilla — combat** |
+| ![Guerrilla stealth](docs/images/gameplay/guerrilla-stealth.jpg) | ![Guerrilla combat](docs/images/gameplay/guerrilla.jpg) |
 
-All persistent data lives under:
 
-`~/Library/Application Support/GRFS Recompiled/`
+## Updates, saves and shader preparation
+
+The launcher checks GitHub Releases and offers **Download and update** or **Not now**. The updater verifies an Ed25519-signed manifest, the ZIP checksum, app identity and build information before replacement. One previous app is kept outside Applications. If the app folder is not writable, manual installation may be required.
+
+Persistent data lives in `~/Library/Application Support/GRFS Recompiled/`:
 
 | Folder | Contents |
 | :--- | :--- |
 | `Game/` | Extracted game files |
-| `UserData/` | Profile and save data |
-| `Diagnostics/CacheCatalogV1/` | v0.10.0.12 local shader/pipeline catalog and compatible driver cache |
-| `CacheCombinedFlowV1/` | v0.10.0.11 shader storage, retained for rollback |
-| `CacheTextureExponentV1/` | Previous version cache, retained for rollback |
-| `Cache/`, `CachePersistent/` | Earlier caches, retained without deletion |
-| `Logs/` | Game and console logs |
-| `Updates/` | Downloaded and staged app updates |
-| `Backups/` | One previous app version, kept outside Applications |
+| `UserData/` | Profile, save data and preferences |
+| `Logs/` | Preparation/session logs |
+| `Diagnostics/Metal-2.1-…/` | Isolated native Metal session cache directories |
+| `Updates/`, `Backups/` | Staged updates and previous app backup |
 
-**Shader storage is not a complete precompiled shader pack.** v0.10.0.12 prepares known compatible records at startup; new variants and later sessions may still trigger compilation. Installation reaching 100% does not mean every shader is compiled. Saves from earlier development prototypes are not automatically migrated.
+Updating does not intentionally erase these folders. Older caches are retained. Current Metal startup avoids the problematic stored-pipeline preload and uses isolated session caches; **a complete, portable, precompiled pipeline pack is not available**. The preparation panel does not imply that every possible shader or pipeline has been compiled. New work can still compile during gameplay.
 
-## Known issues
+## Contributors wanted
 
-- Black texture flicker can appear in cinematics.
-- Reloading some campaign scenes can produce corrupted geometry or textures.
-- First-time effects and scenes may stutter during shader compilation.
-- The mip0 workaround does not fix the underlying mipmap handling.
-- Public distribution is not yet notarized; testing beyond the two listed Macs is still needed.
+Help with **Metal resource synchronization, material correctness, frame pacing, shader/pipeline compilation and reproducible builds** is welcome. This is a heavily AI-assisted experimental project. Small reviewed fixes and reproducible captures are especially valuable.
 
-Found a problem? **[Open an issue](https://github.com/alex-stampede/GRFS-Recomp/issues/new/choose)** with your Mac model, macOS version, release version, reproduction steps, and a screenshot if useful. Review logs for personal information before attaching them. Please do not upload ISOs, original executables, or game data.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), [BUILDING.md](docs/BUILDING.md), the [architecture map](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). Some older developer pages describe the legacy Vulkan backend; use the **versioned native Metal source overlay attached to 2.x releases** for that backend. A complete verified ISO-to-runtime rebuild remains work in progress. The launcher packaging script alone does not rebuild the game or all native Metal components.
 
-<details>
-<summary><strong>Building the launcher and repository layout</strong></summary>
-
-See **[developer setup](docs/BUILDING.md)** for the tested host-check command, launcher packaging workflow, and current full-build limitations.
-
-### Build prerequisites
-
-Install the Xcode command-line tools and supply a compatible, already compiled ARM64 runtime containing `grfs`, `librexruntime.dylib`, `librexgpu-xenos.dylib`, `libgrfs_AICLASS_X360_F.dylib`, `libTracyClient.dylib`, and `vulkan/`.
-
-Set `GRFS_RUNTIME_DIR` to that directory and run `python3 launcher/build.py`. You may set `GRFS_ICON_FILE` to a local `.icns`. The packaging script builds the launcher and helper; it does **not** regenerate or rebuild the game from an ISO. Download a Release if you only want to play.
-
-[Release v0.10.0.1](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v0.10.0.1) also includes `ReXGlue-SDK-source.tar.gz`, a snapshot of the SDK sources and dependencies used in development. Later releases may link to that archive when those sources are unchanged. It does not contain the game code generated from the ISO. A full reproducible game-build workflow is still in development.
-
-### Repository layout
-
-| Path | Purpose |
-| :--- | :--- |
-| [`launcher/`](launcher/) | Native installer, signed updater, helper, and tests |
-| [`docs/images/`](docs/images/) | README artwork and presentation assets |
-| [`THIRD_PARTY_LICENSES/`](THIRD_PARTY_LICENSES/) | ReXGlue/Xenia and dependency license notices |
-| [`RELEASING.md`](RELEASING.md) | Packaging, signing, and release workflow |
-| [`CHANGELOG.md`](CHANGELOG.md) | Published changes |
-
-The source repository excludes ISOs, extracted game files, saves, signing keys, compiled runtime libraries, and generated game code. See [launcher development notes](launcher/README.md) for the verification tests.
-
-</details>
+Report problems through [GitHub Issues](https://github.com/alex-stampede/GRFS-Recomp/issues/new/choose), including release, Mac model, macOS version and reproduction steps. Review logs before attaching them. Do not upload ISOs or original game data.
 
 ## Support the project
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-Support_the_project-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/elchristian)
 
-If you enjoy GRFS-Recomp, you can help support its development through **[Buy Me a Coffee](https://buymeacoffee.com/elchristian)**.
+Support helps improve GRFS-Recomp's performance, graphics and installation, and supports research into future projects such as **Ghost Recon Advanced Warfighter 1 and 2**. Future ports depend on technical feasibility. Donations are optional.
 
-Your support helps me dedicate more time to improving performance, fixing graphical issues, and making installation and updates easier. It also supports research into future recompilation projects, including **Ghost Recon Advanced Warfighter 1 and 2**.
+## Credits and licenses
 
-Future projects are exploratory and depend on technical feasibility. Donations are optional, and this project will remain available regardless of whether you contribute. Thank you for supporting the work and helping bring these games to modern Macs!
+- [ReXGlue](https://github.com/rexglue/rexglue-sdk): static recompilation runtime and SDK.
+- [Xenia](https://github.com/xenia-project/xenia) and XeniOS: Xbox 360 research and the native Metal backend port. See the release source overlay for provenance and license notices.
+- [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross): shader translation to Metal Shading Language.
+- [MoltenVK](https://github.com/KhronosGroup/MoltenVK): graphics translation used by the legacy Vulkan builds.
+- [hl360-Forza2](https://github.com/0herculabs/hl360-Forza2): early reference and presentation inspiration.
+- Everyone testing builds and contributing fixes.
 
-## Credits
-
-- **[ReXGlue](https://github.com/rexglue/rexglue-sdk)** — static recompilation SDK and runtime.
-- **[Xenia](https://github.com/xenia-project/xenia)** — Xbox 360 research underlying the runtime.
-- **[MoltenVK](https://github.com/KhronosGroup/MoltenVK)** — Vulkan-to-Metal implementation.
-- **[hl360-Forza2](https://github.com/0herculabs/hl360-Forza2)** — reference project consulted during development and inspiration for this project page.
-- Everyone testing builds and reporting issues.
-
-## License and game ownership
-
-Original launcher and release tooling: **[MIT](LICENSE)**. Third-party components retain their own licenses, provided in [`THIRD_PARTY_LICENSES/`](THIRD_PARTY_LICENSES/) and inside the app.
-
-Ghost Recon Future Soldier and its artwork belong to their respective rights holders. This is an independent community project, not affiliated with or endorsed by Ubisoft, Microsoft, or the upstream runtime projects. The launcher license does not grant rights to the game or its assets.
-
-### v0.10.0.13 rendering update
-
-Synchronous shader memory readback with reusable staging buffers was tested on M3 in Gunsmith, campaign and Guerrilla with no observed graphical errors and reported steadier performance. Additional campaign saves remain unresolved. Startup catalog prewarming is disabled and shader caches are isolated per launch. See [release details](docs/RELEASE-v0.10.0.13.md).
+Original launcher/tooling: [MIT](LICENSE). Third-party components retain their licenses in [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES/) and the release package. Ghost Recon Future Soldier and its artwork belong to their rights holders. This independent project is not affiliated with Ubisoft, Microsoft or upstream projects; its license grants no rights to game assets.
