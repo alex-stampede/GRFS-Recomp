@@ -9,13 +9,13 @@
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
 <p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
-## Native Metal — 2.1.2
+## Native Metal — 2.1.3
 
 The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alongside static PowerPC recompilation and the ReXGlue runtime. Xbox 360 GPU shaders are translated through SPIR-V and SPIRV-Cross into Metal shaders. The active 2.x rendering path does **not** run through Vulkan/MoltenVK; that describes the older 0.10.x builds.
 
-**2.1.2 simplifies display settings:** output uses the native drawable size and host presentation is unlimited. The output-resolution cap and FPS-limit selectors have been removed from F5; older saved cap settings are overridden on launch. Fullscreen/windowed selection remains. The Metal HUD switch explicitly enables or disables Apple's HUD, without the separate game-counter overlay.
+**Display settings:** output uses the native drawable size and host presentation is unlimited. The output-resolution cap and FPS-limit selectors have been removed from F5; older saved cap settings are overridden on launch. Fullscreen/windowed selection remains. The Metal HUD switch explicitly enables or disables Apple's HUD, without the separate game-counter overlay.
 
-The shader-lookup and gamma protections from 2.1.1 are retained. Experimental GPU completion waits used to investigate flicker are **not enabled** in this release. Black flashes and material patches remain under investigation; this is not a graphics-fix release.
+**2.1.3 restores normal mipmap sampling and enables the memexport-only synchronization mode.** Resolve waits are disabled and the GPU synchronization test panel has been removed. The shader lookup and gamma protections from 2.1.1 are retained. Black flashes and material patches remain under investigation.
 
 > [!IMPORTANT]
 > Supply your own compatible **Xbox 360 ISO**. No ISO, original game executable, textures, audio or cinematics are included. Installation and verification happen locally; your ISO is not uploaded.
@@ -106,10 +106,7 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 - White/black patches or incorrect materials can appear on characters, weapons and in cinematics. Their cause is not yet confirmed.
 - New scenes/effects can trigger shader or pipeline compilation pauses.
 - Additional campaign saves do not consistently appear alongside the main campaign. Do not rely on multiple independent slots.
-- The mip0 workaround remains; underlying mipmap correctness is unfinished.
 - Metal HUD presentation FPS can include repeated images and must not be equated with simulation speed or unique game frames.
-
-A diagnostic variant that waits for GPU writes reduced observed artifacts but also reduced performance. It is not the published fix. No depth-bias or mipmap change is claimed to solve these defects.
 
 ## In-game screenshots
 
