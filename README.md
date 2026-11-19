@@ -9,11 +9,13 @@
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
 <p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
-## Native Metal — 2.1.4
+## Native Metal — 2.1.5
 
 The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alongside static PowerPC recompilation and the ReXGlue runtime. Xbox 360 GPU shaders are translated through SPIR-V and SPIRV-Cross into Metal shaders. The active 2.x rendering path does **not** run through Vulkan/MoltenVK; that describes the older 0.10.x builds.
 
 **Display settings:** output uses the native drawable size and host presentation is unlimited. The output-resolution cap and FPS-limit selectors have been removed from F5; older saved cap settings are overridden on launch. Fullscreen/windowed selection remains. The Metal HUD switch explicitly enables or disables Apple's HUD, without the separate game-counter overlay.
+
+**2.1.5 restores the F5 controls** for fullscreen/windowed mode, Metal HUD, and Save and restart. In windowed mode, choose a window size and select Save and restart to apply it. F4 settings are unchanged.
 
 **2.1.4 applies the saved fullscreen mode after attaching the Metal presenter.** This addresses the startup slowdown that could clear after switching modes with F5. It also adds a guard for the missing record implicated in a Gunsmith firing-range freeze. F4 settings remain unchanged.
 
