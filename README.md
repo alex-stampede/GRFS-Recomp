@@ -11,6 +11,8 @@
 
 ## Native Metal — 2.1.6
 
+**Startup fix (build 2026112502).** The download and in-app update contain a re-signed Metal plugin that fixes startup error 9 in the first 2.1.6 package.
+
 The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alongside static PowerPC recompilation and the ReXGlue runtime. Xbox 360 GPU shaders are translated through SPIR-V and SPIRV-Cross into Metal shaders. The active 2.x rendering path does **not** run through Vulkan/MoltenVK; that describes the older 0.10.x builds.
 
 **Display settings:** output uses the native drawable size and host presentation is unlimited. The output-resolution cap and FPS-limit selectors have been removed from F5; older saved cap settings are overridden on launch. Fullscreen/windowed selection remains. The Metal HUD switch explicitly enables or disables Apple's HUD, without the separate game-counter overlay.
