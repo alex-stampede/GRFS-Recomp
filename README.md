@@ -33,7 +33,7 @@ The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alo
 > Supply your own compatible **Xbox 360 ISO**. No ISO, original game executable, textures, audio or cinematics are included. Installation and verification happen locally; your ISO is not uploaded.
 
 > [!WARNING]
-> Experimental, ad-hoc signed and not notarized. Current binaries require **Apple Silicon and macOS 27.2 or later**. Scene-dependent performance and graphical defects remain. Unlimited presentation does not unlock the game's simulation or guarantee 60 unique game frames per second.
+> Experimental, ad-hoc signed and not notarized. Current binaries require **Apple Silicon and macOS 27.2 or later**. Scene-dependent performance and graphical defects remain. The Metal HUD counts presentations, which can repeat a game frame. The game's simulation speed is independent of that counter.
 
 ## Getting started
 
@@ -103,7 +103,7 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 | Area | Status |
 | :--- | :--- |
 | Renderer | Native Metal in 2.x; legacy Vulkan/MoltenVK in 0.10.x |
-| Campaign | Gameplay and continuation tested; additional campaign save slots remain unresolved |
+| Campaign | Gameplay, continuation, and saving a new campaign tested |
 | Gunsmith / firing range | Accessible; intermittent material defects remain |
 | Guerrilla | Playable in tested sections |
 | Controls | Keyboard/mouse playtested; controller behavior needs more hardware testing |
@@ -114,12 +114,10 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 
 ## Known issues
 
-- Intermittent full-image black flashes occur on both tested Macs.
-- Other HUD and menu glitches in Gunsmith and loading screens, along with shadow flashes, still need targeted validation with the HUD hotfix.
-- The distant-character patch fix was verified in Guerrilla on M4 Pro. Other material artifacts, campaign scenes, Gunsmith, and the fix on M3 Air still need coverage.
-- New scenes/effects can trigger shader or pipeline compilation pauses.
-- Additional campaign saves do not consistently appear alongside the main campaign. Do not rely on multiple independent slots.
-- Metal HUD presentation FPS can include repeated images and must not be equated with simulation speed or unique game frames.
+- Intermittent full-screen black flashes have been reported on both tested Macs.
+- New scenes and effects can briefly pause while shaders or pipelines compile.
+
+Previously reported Gunsmith and loading-screen HUD glitches and shadow flashes are awaiting a targeted retest on build 2026112504.
 
 ## In-game screenshots
 
