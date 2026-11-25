@@ -9,23 +9,25 @@
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
 <p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
-## Native Metal — 2.1.5
+## Native Metal — 2.1.6
 
 The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alongside static PowerPC recompilation and the ReXGlue runtime. Xbox 360 GPU shaders are translated through SPIR-V and SPIRV-Cross into Metal shaders. The active 2.x rendering path does **not** run through Vulkan/MoltenVK; that describes the older 0.10.x builds.
 
 **Display settings:** output uses the native drawable size and host presentation is unlimited. The output-resolution cap and FPS-limit selectors have been removed from F5; older saved cap settings are overridden on launch. Fullscreen/windowed selection remains. The Metal HUD switch explicitly enables or disables Apple's HUD, without the separate game-counter overlay.
 
+**2.1.6 corrects confirmed dark patches on distant character models in Guerrilla.** Metal now applies the Xbox 360 constant depth bias in the viewport for supported draw states. The correction was verified on M4 Pro with a replay of the same draw and during gameplay. It runs on the normal Metal rendering path. The public package is based on 2.1.5 and keeps its save location and F5 controls.
+
 **2.1.5 restores the F5 controls** for fullscreen/windowed mode, Metal HUD, and Save and restart. In windowed mode, choose a window size and select Save and restart to apply it. F4 settings are unchanged.
 
 **2.1.4 applies the saved fullscreen mode after attaching the Metal presenter.** This addresses the startup slowdown that could clear after switching modes with F5. It also adds a guard for the missing record implicated in a Gunsmith firing-range freeze. F4 settings remain unchanged.
 
-**2.1.3 restores normal mipmap sampling and enables the memexport-only synchronization mode.** Resolve waits are disabled and the GPU synchronization test panel has been removed. The shader lookup and gamma protections from 2.1.1 are retained. Black flashes and material patches remain under investigation.
+**2.1.3 restores normal mipmap sampling and enables the memexport-only synchronization mode.** Resolve waits are disabled and the GPU synchronization test panel has been removed. The shader lookup and gamma protections from 2.1.1 are retained. Full-screen black flashes remain under investigation.
 
 > [!IMPORTANT]
 > Supply your own compatible **Xbox 360 ISO**. No ISO, original game executable, textures, audio or cinematics are included. Installation and verification happen locally; your ISO is not uploaded.
 
 > [!WARNING]
-> Experimental, ad-hoc signed and not notarized. Current binaries require **Apple Silicon and macOS 27.0 or later**. Scene-dependent performance and graphical defects remain. Unlimited presentation does not unlock the game's simulation or guarantee 60 unique game frames per second.
+> Experimental, ad-hoc signed and not notarized. Current binaries require **Apple Silicon and macOS 27.2 or later**. Scene-dependent performance and graphical defects remain. Unlimited presentation does not unlock the game's simulation or guarantee 60 unique game frames per second.
 
 ## Getting started
 
@@ -38,7 +40,7 @@ The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alo
 | Requirement | Details |
 | :--- | :--- |
 | Mac | Apple Silicon / ARM64 |
-| macOS | 27.0 or later for current binaries |
+| macOS | 27.2 or later for 2.1.6 |
 | Game | Own Xbox 360 ISO matching [the compatibility manifest](launcher/compatible-game.json) |
 | Development machine | Mac mini M4 Pro, 24 GB memory |
 | Additional testing | MacBook Air M3, 8 GB memory |
@@ -107,7 +109,7 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 ## Known issues
 
 - Intermittent full-image black flashes occur on both tested Macs.
-- White/black patches or incorrect materials can appear on characters, weapons and in cinematics. Their cause is not yet confirmed.
+- The distant-character patch fix was verified in Guerrilla on M4 Pro. Other material artifacts, campaign scenes, Gunsmith, and the fix on M3 Air still need coverage.
 - New scenes/effects can trigger shader or pipeline compilation pauses.
 - Additional campaign saves do not consistently appear alongside the main campaign. Do not rely on multiple independent slots.
 - Metal HUD presentation FPS can include repeated images and must not be equated with simulation speed or unique game frames.
