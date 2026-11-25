@@ -11,6 +11,8 @@
 
 ## Native Metal — 2.1.6
 
+**HUD flicker hotfix (build 2026112504).** Metal now queues the guest pixel-shader completion write behind the draws it covers. At the tested M4 Pro campaign checkpoint, the **Deploy Sensors** panel stayed intact in two 45-second captures at 30.0 guest swaps per second. The hotfix is available through the launcher and the regular download. F5 still controls Apple’s Metal HUD.
+
 **Metal HUD update (build 2026112503).** The F5 switch in Options enables and disables Apple’s Metal HUD on the active game surface in both windowed and fullscreen modes.
 
 **Startup fix (build 2026112502).** The download and in-app update contain a re-signed Metal plugin that fixes startup error 9 in the first 2.1.6 package.
@@ -113,6 +115,7 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 ## Known issues
 
 - Intermittent full-image black flashes occur on both tested Macs.
+- Other HUD and menu glitches in Gunsmith and loading screens, along with shadow flashes, still need targeted validation with the HUD hotfix.
 - The distant-character patch fix was verified in Guerrilla on M4 Pro. Other material artifacts, campaign scenes, Gunsmith, and the fix on M3 Air still need coverage.
 - New scenes/effects can trigger shader or pipeline compilation pauses.
 - Additional campaign saves do not consistently appear alongside the main campaign. Do not rely on multiple independent slots.
