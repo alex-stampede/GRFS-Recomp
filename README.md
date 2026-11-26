@@ -9,25 +9,17 @@
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
 <p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
-## Native Metal — 2.1.6
+## Native Metal — 3.1.1
 
-**HUD flicker hotfix (build 2026112504).** Metal now queues the guest pixel-shader completion write behind the draws it covers. At the tested M4 Pro campaign checkpoint, the **Deploy Sensors** panel stayed intact in two 45-second captures at 30.0 guest swaps per second. The hotfix is available through the launcher and the regular download. F5 still controls Apple’s Metal HUD.
+**Build 2026112601** fixes the black flashes reproduced in campaign. Metal now retires completed texture-cache work before a draw prepares its texture bindings, keeping them valid through encoding. The fix adds no GPU waits. The distant-character patch fix from 2.1.6 is included.
 
-**Metal HUD update (build 2026112503).** The F5 switch in Options enables and disables Apple’s Metal HUD on the active game surface in both windowed and fullscreen modes.
+- **Native output with uncapped host presentation.** The original game can produce new frames at a different cadence from Metal HUD presentations.
+- **F5 display controls.** Switch between fullscreen and windowed mode, choose the window size, toggle Apple’s Metal HUD, and use **Save and restart** to apply settings that require a restart.
+- **Native macOS fullscreen and Game Mode support.** macOS controls when Game Mode activates.
 
-**Startup fix (build 2026112502).** The download and in-app update contain a re-signed Metal plugin that fixes startup error 9 in the first 2.1.6 package.
+On M4 Pro, the frame probe detected zero black outputs during a 59-second campaign run with the default texture-cache budget. The maintainer also confirmed the candidate in gameplay. The earlier dark patches on distant models were verified fixed in tested Guerrilla scenes. Longer sessions and retesting on the 8 GB M3 Air are still pending.
 
-The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alongside static PowerPC recompilation and the ReXGlue runtime. Xbox 360 GPU shaders are translated through SPIR-V and SPIRV-Cross into Metal shaders. The active 2.x rendering path does **not** run through Vulkan/MoltenVK; that describes the older 0.10.x builds.
-
-**Display settings:** output uses the native drawable size and host presentation is unlimited. The output-resolution cap and FPS-limit selectors have been removed from F5; older saved cap settings are overridden on launch. Fullscreen/windowed selection remains. The Metal HUD switch explicitly enables or disables Apple's HUD, without the separate game-counter overlay.
-
-**2.1.6 corrects confirmed dark patches on distant character models in Guerrilla.** Metal now applies the Xbox 360 constant depth bias in the viewport for supported draw states. The correction was verified on M4 Pro with a replay of the same draw and during gameplay. It runs on the normal Metal rendering path. The public package is based on 2.1.5 and keeps its save location and F5 controls.
-
-**2.1.5 restores the F5 controls** for fullscreen/windowed mode, Metal HUD, and Save and restart. In windowed mode, choose a window size and select Save and restart to apply it. F4 settings are unchanged.
-
-**2.1.4 applies the saved fullscreen mode after attaching the Metal presenter.** This addresses the startup slowdown that could clear after switching modes with F5. It also adds a guard for the missing record implicated in a Gunsmith firing-range freeze. F4 settings remain unchanged.
-
-**2.1.3 restores normal mipmap sampling and enables the memexport-only synchronization mode.** Resolve waits are disabled and the GPU synchronization test panel has been removed. The shader lookup and gamma protections from 2.1.1 are retained. Full-screen black flashes remain under investigation.
+The current release uses the native Metal backend ported from XeniOS, static PowerPC recompilation, and the ReXGlue runtime. Xbox 360 GPU shaders are translated through SPIR-V and SPIRV-Cross into Metal shaders.
 
 > [!IMPORTANT]
 > Supply your own compatible **Xbox 360 ISO**. No ISO, original game executable, textures, audio or cinematics are included. Installation and verification happen locally; your ISO is not uploaded.
@@ -46,7 +38,7 @@ The 2.x releases use a **native Metal graphics backend** ported from XeniOS, alo
 | Requirement | Details |
 | :--- | :--- |
 | Mac | Apple Silicon / ARM64 |
-| macOS | 27.2 or later for 2.1.6 |
+| macOS | 27.2 or later for 3.1.1 |
 | Game | Own Xbox 360 ISO matching [the compatibility manifest](launcher/compatible-game.json) |
 | Development machine | Mac mini M4 Pro, 24 GB memory |
 | Additional testing | MacBook Air M3, 8 GB memory |
@@ -56,7 +48,7 @@ The owner reports substantially smoother play with native output and unlimited p
 
 ## PC settings and controls
 
-F5 provides fullscreen/windowed preferences, mouse sensitivity, keyboard/mouse bindings, menu-language settings and **Enable Metal HUD**. Language changes require saving and restarting. The game's audio/subtitle options remain available. Native macOS fullscreen and Game Mode support are retained; macOS controls actual Game Mode activation.
+F5 provides fullscreen/windowed preferences, window size, Save and restart, mouse sensitivity, keyboard/mouse bindings, menu-language settings and **Enable Metal HUD**. Language changes require saving and restarting. The game's audio/subtitle options remain available. Native macOS fullscreen and Game Mode support are retained; macOS controls actual Game Mode activation.
 
 Select **Apply PC preset** to enable mouse look and these bindings:
 
@@ -102,7 +94,7 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 
 | Area | Status |
 | :--- | :--- |
-| Renderer | Native Metal in 2.x; legacy Vulkan/MoltenVK in 0.10.x |
+| Renderer | Native Metal in the current release; legacy Vulkan/MoltenVK in 0.10.x |
 | Campaign | Gameplay, continuation, and saving a new campaign tested |
 | Gunsmith / firing range | Accessible; intermittent material defects remain |
 | Guerrilla | Playable in tested sections |
@@ -114,10 +106,10 @@ Mouse-look is **off by default** in this build: use the arrow keys for the camer
 
 ## Known issues
 
-- Intermittent full-screen black flashes have been reported on both tested Macs.
+- The 3.1.1 flash fix still needs extended campaign coverage and a retest on M3 Air.
 - New scenes and effects can briefly pause while shaders or pipelines compile.
 
-Previously reported Gunsmith and loading-screen HUD glitches and shadow flashes are awaiting a targeted retest on build 2026112504.
+Previously reported Gunsmith and loading-screen HUD glitches and shadow flashes are awaiting a targeted retest on 3.1.1.
 
 ## In-game screenshots
 
@@ -155,7 +147,7 @@ Updating does not intentionally erase these folders. Older caches are retained. 
 
 Help with **Metal resource synchronization, material correctness, frame pacing, shader/pipeline compilation and reproducible builds** is welcome. This is a heavily AI-assisted experimental project. Small reviewed fixes and reproducible captures are especially valuable.
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md), [BUILDING.md](docs/BUILDING.md), the [architecture map](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). Some older developer pages describe the legacy Vulkan backend; use the **versioned native Metal source overlay attached to 2.x releases** for that backend. A complete verified ISO-to-runtime rebuild remains work in progress. The launcher packaging script alone does not rebuild the game or all native Metal components.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), [BUILDING.md](docs/BUILDING.md), the [architecture map](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). Some older developer pages describe the legacy Vulkan backend; use the **versioned native Metal source overlay attached to native Metal releases** for that backend. A complete verified ISO-to-runtime rebuild remains work in progress. The launcher packaging script alone does not rebuild the game or all native Metal components.
 
 Report problems through [GitHub Issues](https://github.com/alex-stampede/GRFS-Recomp/issues/new/choose), including release, Mac model, macOS version and reproduction steps. Review logs before attaching them. Do not upload ISOs or original game data.
 
