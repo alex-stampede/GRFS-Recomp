@@ -7,7 +7,19 @@
   <img src="https://img.shields.io/badge/status-experimental-e6b766?style=flat-square" alt="Experimental">
 </p>
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
-<p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
+<p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#native-metal--312-tu3-preview">TU3 + DLC preview</a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
+
+## Native Metal — 3.1.2 TU3 Preview
+
+The [3.1.2 preview](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.2) applies Title Update 3 directly to the clean Xbox 360 release with Title ID `55530833` and Media ID `2DF41A75`. It uses the same Metal renderer as 3.1.1, with native output, uncapped host presentation, and the F5 display controls.
+
+1. Install a clean copy of the compatible Xbox 360 disc in 3.1.1 using the instructions below.
+2. Download the [preview ZIP](https://github.com/alex-stampede/GRFS-Recomp/releases/download/v3.1.2/GRFS-Recompiled-3.1.2-TU3-macOS-arm64.zip), extract it, and open **GRFS Recompiled TU3 Preview.app** on Apple Silicon with macOS 27.2 or later.
+3. Select your own TU3 ZIP or its verified `2DF41A75` update package. Then select your `55530833` folder containing the three `00000002` DLC packages. The game, title update, and DLC files are supplied locally.
+
+On first launch the preview creates a separate game installation, copies the existing saves, and creates its own shader cache under `~/Library/Application Support/GRFS Recompiled TU3 Preview/`. Progress made there belongs to the preview profile. 3.1.1 remains the stable download and automatic update channel.
+
+All three DLC packages mounted on M4 Pro. Raven Strike's **Secure Dawn** mission started and saved to a separate campaign slot. The other DLC maps and audio still need full playtesting. A warm-cache campaign comparison measured about 30 new game swaps per second on both builds, with higher median GPU time in TU3 (23.87 ms versus 19.81 ms). The equipped weapon differed between runs. The preview still needs testing on the 8 GB M3 Air.
 
 ## Native Metal — 3.1.1
 
