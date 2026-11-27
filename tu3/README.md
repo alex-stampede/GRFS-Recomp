@@ -4,6 +4,13 @@ This worktree is based on v3.1.1. The title-specific ReXGlue manifest records TU
 
 The private build and test workspace is the parent of this worktree. There, prepare-tu3.py validates an original disc and update package, stages the verified sibling XEXP files for ReXGlue, and retains the non-executable files on update:. No game files, generated title code, title update files or save data belong in this worktree.
 
+## PC settings on TU3
+
+After generating AICLASS, run `python3 tu3/apply-options.py path/to/generated/aiclass`.
+The base observer in `sub_884EEA08` moved to `sub_884FA3C0` in TU3. The observer
+forwards the screen name after the guest's `ScreenLoaded` comparison and string
+length calculation. Rebuild AICLASS before packaging.
+
 ## Standard launcher package
 
 Use the verified 3.1.1 app, the recompiled TU3 game app, the extracted update

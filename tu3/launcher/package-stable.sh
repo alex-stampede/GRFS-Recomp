@@ -16,6 +16,10 @@ resources="$app/Contents/Resources"
 runtime="$resources/Game.app/Contents/MacOS"
 launcher="$project/launcher"
 [[ ! -e "$app" ]]
+if ! LC_ALL=C grep -aqF grfs_notify_screen "$candidate/Contents/MacOS/libgrfs_AICLASS_X360_F.dylib"; then
+  print -u2 'TU3 AICLASS is missing the Options screen bridge. Apply tu3/apply-options.py and rebuild.'
+  exit 1
+fi
 
 # Allow only the verified TU3 inventory, never base-game or DLC files.
 (cd "$title_update" && shasum -a 256 -c "$project/tu3/update-assets.sha256")

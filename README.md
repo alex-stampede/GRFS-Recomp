@@ -9,6 +9,10 @@
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
 <p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#install-dlc">Install DLC</a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
+## Native Metal — 3.1.4
+
+[Version 3.1.4](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.4) restores **Extras → Options → F5** on TU3. The PC settings panel includes display mode, window size, Apple’s Metal HUD, and **Save and restart**. The launcher still installs DLC from your local folder with a progress bar.
+
 ## Native Metal — 3.1.3
 
 [Version 3.1.3](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.3) adds **Title Update 3** to the standard launcher and signed update channel. It applies the bundled update directly to the compatible Xbox 360 release with Title ID `55530833` and Media ID `2DF41A75`. Existing installations keep their game and saves. The launcher prepares a local copy for TU3 and uses a separate TU3 shader cache.
