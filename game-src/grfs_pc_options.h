@@ -50,6 +50,15 @@ inline void NotifyClose() {
   }
 }
 
+inline void RestoreKeyboardControls() {
+  for (const auto& name : rex::cvar::ListFlagsByCategory("Input/Keybinds/Controller"))
+    rex::cvar::ResetToDefault(name);
+  rex::cvar::ResetToDefault("mnk_mouse");
+  rex::cvar::SetFlagByName("mnk_mode", "true");
+  restore_mouse = false;
+  rex::input::mnk::SetMouseLookActive(false);
+}
+
 class Dialog final : public rex::ui::ImGuiDialog {
  public:
   Dialog(rex::ui::ImGuiDrawer* drawer, std::filesystem::path config, ImFont* font)
@@ -248,6 +257,14 @@ class Dialog final : public rex::ui::ImGuiDialog {
       rex::cvar::InvokeCommand("grfs_pc_controls", "");
       rex::input::mnk::SetMouseLookActive(false);
       dirty_ = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(Text("Restore keyboard defaults", "Restablecer teclado"))) {
+      RestoreKeyboardControls();
+      capturing_.clear();
+      dirty_ = true;
+      message_ = Text("Keyboard controls restored. Save settings to keep them.",
+                      "Controles de teclado restablecidos. Guarda los ajustes para conservarlos.");
     }
     ImGui::SameLine();
     ImGui::TextDisabled("%s", Text("Click a binding; Esc cancels capture.", "Pulsa una tecla asignada; Esc cancela la captura."));
