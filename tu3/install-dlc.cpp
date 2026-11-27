@@ -39,19 +39,21 @@ int main(int argc, char** argv) {
     return 4;
   }
   auto* manager = runtime.kernel_state()->content_manager();
+  unsigned installed = 0;
   for (const auto& path : packages) {
     if (const auto status = manager->InstallContent(path); status != 0) {
       std::cerr << "InstallContent failed: " << path << " status=" << status << '\n';
       return 5;
     }
+    std::cout << "DLC_PROGRESS " << ++installed << std::endl;
   }
 
   const auto items = manager->ListContent(
       static_cast<uint32_t>(rex::system::xam::DummyDeviceId::HDD), 0, marketplace, title_id);
-  if (items.size() != ids.size()) return 6;
   for (const auto& item : items) {
     uint32_t license = 0;
-    if (!ids.erase(item.file_name()) || manager->OpenContent("dlcprobe", 0, item, license) != 0) {
+    if (!ids.erase(item.file_name())) continue;
+    if (manager->OpenContent("dlcprobe", 0, item, license) != 0) {
       return 7;
     }
     auto* ini = runtime.file_system()->ResolvePath("dlcprobe:\\dlc.ini");

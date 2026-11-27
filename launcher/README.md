@@ -6,6 +6,8 @@ Native AppKit XDVDFS installer and signed updater. See the root [README](../READ
 | :--- | :--- |
 | `main.swift` | App entry point and ISO inspection/extraction CLI |
 | `Launcher.swift` | ISO selection, validation, progress, game launch, persistent data |
+| `TitleUpdate.swift` | Local game clone and verified TU3 overlay |
+| `DLCInstallation.swift` | Local DLC verification, installation progress, and atomic import |
 | `Updater.swift` | GitHub Release lookup, user consent, Ed25519 verification, staged download |
 | `UpdateHelper.swift` | App replacement, previous-version backup, and relaunch |
 | `LauncherTheme.swift` | GRFS artwork, dark AppKit theme, progress and action button |
@@ -19,7 +21,7 @@ Native AppKit XDVDFS installer and signed updater. See the root [README](../READ
 
 For the complete game-free host suite, run `python3 scripts/check_contributor.py` from the repository root. It compiles all current Swift sources and runs tests in temporary directories. See [developer setup](../docs/BUILDING.md) and [validation requirements](../docs/TESTING.md). The manual commands below describe individual checks.
 
-Compile `main.swift`, `Launcher.swift`, `Updater.swift`, `LauncherTheme.swift`, and `LegacyBackups.swift` with AppKit and CryptoKit to `/private/tmp/grfs-launcher-build`, then run `python3 launcher/test_iso.py`.
+The host suite builds the current launcher with AppKit and CryptoKit before invoking `test_iso.py`. For packaging the current launcher, use the [TU3 build notes](../tu3/README.md).
 
 Compile `UpdateHelper.swift` with AppKit to `/private/tmp/grfs-update-helper`, then run `python3 launcher/test_updates.py`.
 

@@ -75,6 +75,10 @@ enum Updates {
             guard let bundle = Bundle(url:app),bundle.bundleIdentifier == Bundle.main.bundleIdentifier,
                   (bundle.object(forInfoDictionaryKey:"CFBundleVersion") as? String) == String(m.build) else { throw Failure("The downloaded app does not match this update.") }
             try run("/usr/bin/codesign",["--verify","--deep","--strict",app.path])
+            let metalPlugin = app.appendingPathComponent("Contents/Resources/Game.app/Contents/MacOS/librexgpu-metal.dylib")
+            if fm.fileExists(atPath:metalPlugin.path) {
+                try run("/usr/bin/codesign",["--verify","--strict",metalPlugin.path])
+            }
             progress(100,"Update verified. Preparing to restart…")
             return app
         } catch { try? fm.removeItem(at:root); throw error }

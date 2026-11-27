@@ -59,7 +59,9 @@ extension Launcher {
         percent.font = .monospacedDigitSystemFont(ofSize:14,weight:.semibold);percent.textColor=grfsAccent
         bar.isIndeterminate=false;bar.minValue=0;bar.maxValue=100
         button.target=self;button.action=#selector(selectISO);button.isBordered=false
-        for view in [brand,platform,section,status,percent,bar,detail,button] {
+        dlcButton.target=self;dlcButton.action=#selector(selectDLC);dlcButton.isBordered=false
+        dlcButton.isEnabled=false
+        for view in [brand,platform,section,status,percent,bar,detail,button,dlcButton] {
             view.translatesAutoresizingMaskIntoConstraints=false;background.addSubview(view)
         }
         NSLayoutConstraint.activate([
@@ -70,7 +72,8 @@ extension Launcher {
             bar.leadingAnchor.constraint(equalTo:section.leadingAnchor),bar.trailingAnchor.constraint(equalTo:background.trailingAnchor,constant:-48),bar.bottomAnchor.constraint(equalTo:background.bottomAnchor,constant:-107),bar.heightAnchor.constraint(equalToConstant:6),
             percent.trailingAnchor.constraint(equalTo:bar.trailingAnchor),percent.bottomAnchor.constraint(equalTo:bar.topAnchor,constant:-12),
             detail.leadingAnchor.constraint(equalTo:section.leadingAnchor),detail.bottomAnchor.constraint(equalTo:background.bottomAnchor,constant:-61),
-            button.trailingAnchor.constraint(equalTo:bar.trailingAnchor),button.centerYAnchor.constraint(equalTo:detail.centerYAnchor),button.widthAnchor.constraint(equalToConstant:190),button.heightAnchor.constraint(equalToConstant:40)
+            button.trailingAnchor.constraint(equalTo:bar.trailingAnchor),button.centerYAnchor.constraint(equalTo:detail.centerYAnchor),button.widthAnchor.constraint(equalToConstant:190),button.heightAnchor.constraint(equalToConstant:40),
+            dlcButton.trailingAnchor.constraint(equalTo:button.leadingAnchor,constant:-12),dlcButton.centerYAnchor.constraint(equalTo:button.centerYAnchor),dlcButton.widthAnchor.constraint(equalToConstant:140),dlcButton.heightAnchor.constraint(equalTo:button.heightAnchor)
         ])
         window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
     }

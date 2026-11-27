@@ -107,6 +107,9 @@ final class Launcher: NSObject, NSApplicationDelegate {
     let home = fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/GRFS Recompiled")
     var game: URL { home.appendingPathComponent("Game") }
     var state: URL { home.appendingPathComponent("installation.json") }
+    var profile: URL { home.appendingPathComponent("UserData") }
+    var titleUpdate: TitleUpdate { TitleUpdate(assets: Bundle.main.resourceURL!.appendingPathComponent("TU3")) }
+    var updatedGame: URL?
     var expected: [String: Expected] = [:]
     var required: [String: UInt64] = [:]
     var window: NSWindow!
@@ -114,9 +117,10 @@ final class Launcher: NSObject, NSApplicationDelegate {
     let percent = NSTextField(labelWithString: "0%")
     let bar = GRFSProgressIndicator()
     let button = GRFSActionButton(title: "Choose ISO…", target: nil, action: nil)
+    let dlcButton = GRFSActionButton(title: "Install DLC…", target: nil, action: nil)
     var busy = false
     var child: Process?
-    var launched = false
+    var experimentalGraphics: ExperimentalGraphicsWindow?
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "DockIcon", withExtension: "png"),
            let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
@@ -129,6 +133,10 @@ final class Launcher: NSObject, NSApplicationDelegate {
         do { try migrateLegacyBackups(home:home) }
         catch { NSLog("Legacy backup cleanup deferred: %@",error.localizedDescription) }
         buildWindow()
+        if Bundle.main.object(forInfoDictionaryKey:"GRFSExperimentalGraphics") as? Bool == true {
+            experimentalGraphics = ExperimentalGraphicsWindow(launcher:self)
+            experimentalGraphics?.show(); return
+        }
         if CommandLine.arguments.contains("--preview-launcher") || Bundle.main.object(forInfoDictionaryKey:"GRFSPreview") as? Bool == true { return }
         checkUpdates { self.continueStartup() }
     }
@@ -138,8 +146,56 @@ final class Launcher: NSObject, NSApplicationDelegate {
             busy = true; button.isEnabled = false
             status.stringValue = "Verifying installation…"
             DispatchQueue.global().async {
-                do { try self.validateInstalled(); DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.startGame() } }
+                do {
+                    try self.validateInstalled()
+                    let ready = try self.titleUpdate.prepare(base: self.game, under: self.home)
+                    DispatchQueue.main.async { self.showReady(ready) }
+                }
                 catch { DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.status.stringValue = "The installation needs repair. Your saves are preserved."; self.button.title = "Reinstall from ISO…"; self.alert(error) } }
+            }
+        }
+    }
+    func showReady(_ directory: URL) {
+        updatedGame = directory
+        busy = false
+        button.title = "Play Game"
+        button.isEnabled = true
+        dlcButton.isEnabled = true
+        update(100, "Ready to play · Title Update 3")
+    }
+
+    @objc func selectDLC() {
+        guard let updatedGame, !busy, child == nil else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.title = "Install DLC"
+        panel.prompt = "Choose Folder"
+        panel.message = "Select your 55530833 folder or its 00000002 subfolder."
+        guard panel.runModal() == .OK, let folder = panel.url,
+              let resources = Bundle.main.resourceURL else { return }
+
+        busy = true
+        button.isEnabled = false
+        dlcButton.isEnabled = false
+        update(0, "Preparing DLC installation…")
+        let installer = DLCInstallation(
+            helper: resources.appendingPathComponent("Game.app/Contents/MacOS/InstallDLC"),
+            game: updatedGame,
+            profile: profile)
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let count = try installer.install(from: folder, progress: self.update)
+                DispatchQueue.main.async {
+                    self.showReady(updatedGame)
+                    self.update(100, count == 1 ? "1 DLC package installed." : "\(count) DLC packages installed.")
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.showReady(updatedGame)
+                    self.update(0, "DLC installation did not complete.")
+                    self.alert(error)
+                }
             }
         }
     }
@@ -166,9 +222,8 @@ final class Launcher: NSObject, NSApplicationDelegate {
         }
     }
     @objc func selectISO() {
-        if child != nil { return }
-        if launched { startGame(); return }
-        guard !busy else { return }
+        guard !busy, child == nil else { return }
+        if updatedGame != nil { startGame(); return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
         panel.title = "Install Ghost Recon Future Soldier"; panel.prompt = "Choose ISO"; panel.message = "Select your compatible Xbox 360 disc image. Files are installed locally."
         panel.allowedContentTypes = [UTType(filenameExtension:"iso") ?? .data]
@@ -196,7 +251,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 }
                 self.update(96,"Verifying installed files…")
                 try self.validateInstalled(at:stage)
-                self.update(98,"Preparing installation and persistent shader storage…")
+                self.update(98,"Preparing Title Update 3…")
                 if fm.fileExists(atPath:self.game.path) {
                     let backup = self.home.appendingPathComponent("Game-backup-"+UUID().uuidString)
                     try fm.moveItem(at:self.game,to:backup)
@@ -205,8 +260,8 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 } else { try fm.moveItem(at:stage,to:self.game) }
                 let info: [String:Any] = ["schema":1,"installedAt":ISO8601DateFormatter().string(from:Date()),"version":"GRFS-55530833-2DF41A75","files":iso.files.count]
                 try JSONSerialization.data(withJSONObject:info,options:.prettyPrinted).write(to:self.state,options:.atomic)
-                self.update(100,"Installation complete. Starting the game…")
-                DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.startGame() }
+                let ready = try self.titleUpdate.prepare(base: self.game, under: self.home)
+                DispatchQueue.main.async { self.showReady(ready) }
             } catch {
                 try? fm.removeItem(at:stage)
                 DispatchQueue.main.async { self.busy = false; self.button.isEnabled = true; self.status.stringValue = "Installation was not completed."; self.alert(error) }
@@ -214,24 +269,51 @@ final class Launcher: NSObject, NSApplicationDelegate {
         }
     }
     let shaderPreparation = ShaderPreparation()
+    var extractingShaderCatalog=false
     func startGame() {
         guard child == nil else { return }
+        startPreparedGame(extractedCatalog:nil)
+    }
+    func startPreparedGame(extractedCatalog:URL?) {
+        guard child == nil, !busy, let updatedGame else { return }
         do {
             let runtime = Bundle.main.resourceURL!.appendingPathComponent("Game.app/Contents/MacOS")
-            let user = home.appendingPathComponent("UserData"), cache = home.appendingPathComponent("Diagnostics/CacheSyncPoolV1-" + UUID().uuidString), logs = home.appendingPathComponent("Logs")
+            let user = profile, cache = home.appendingPathComponent("CacheTU3"), logs = home.appendingPathComponent("Logs")
+            let safetyMode=Bundle.main.object(forInfoDictionaryKey:"GRFSSafetyMode")as? String ?? ""
+            let freshOnly=safetyMode=="fresh-on-demand"
+            let captureOnly=safetyMode=="on-demand" || freshOnly
+            let activeCache=captureOnly ? home.appendingPathComponent(freshOnly ? "Diagnostics/CacheFreshGuestV1-"+UUID().uuidString : "Diagnostics/CacheCatalogSafetyV1-record"):cache
+            if captureOnly {
+                let destination=activeCache.appendingPathComponent("shaders/shareable")
+                try fm.createDirectory(at:destination,withIntermediateDirectories:true)
+                let seed=destination.appendingPathComponent("seeded")
+                if !freshOnly && !fm.fileExists(atPath:seed.path){
+                    for source in [cache.appendingPathComponent("shaders/shareable"),home.appendingPathComponent("CacheCombinedFlowV1/shaders/shareable"),home.appendingPathComponent("CachePersistent/shaders/shareable")] {
+                        let xsh=source.appendingPathComponent("55530833.xsh")
+                        if fm.fileExists(atPath:xsh.path){
+                            for name in ["55530833.xsh","55530833.fbo.vk.xpso"] {
+                                let file=source.appendingPathComponent(name),target=destination.appendingPathComponent(name)
+                                if fm.fileExists(atPath:file.path),!fm.fileExists(atPath:target.path){try fm.copyItem(at:file,to:target)}
+                            };break
+                        }
+                    }
+                    try Data().write(to:seed,options:.atomic)
+                }
+            }
             let preparationLogs=logs.appendingPathComponent("Preparation-"+UUID().uuidString)
             for path in [user,cache,logs,preparationLogs] { try fm.createDirectory(at:path,withIntermediateDirectories:true) }
             // Prepare known portable records using the tested catalog path.
             let p = Process(); p.executableURL = runtime.appendingPathComponent("grfs"); p.currentDirectoryURL = runtime
             // Match the M3-tested path: on-demand pipelines, bounded draw extents.
             // Keep synchronous gameplay compilation and persistent shader storage.
-            p.arguments = ["--game_data_root="+game.path,"--user_data_root="+user.path,"--cache_root="+cache.path,"--log_file="+preparationLogs.appendingPathComponent("game.log").path,"--gpu_plugin=xenos","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--window_width=1280","--window_height=720","--render_target_path_vulkan=fbo","--readback_resolve=fast","--readback_memexport=true","--readback_memexport_fast=false","--clear_memory_page_state=true","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--vulkan_pipeline_creation_threads=1","--execute_unclipped_draw_vs_on_cpu=true","--log_level=info"]
+            p.arguments = ["--game_data_root="+updatedGame.path,"--update_data_root="+titleUpdate.assets.path,"--user_data_root="+user.path,"--cache_root="+activeCache.path,"--log_file="+preparationLogs.appendingPathComponent("game.log").path,"--gpu_plugin=metal","--grfs_output_resolution=native","--grfs_present_limit=0","--mnk_mode",fullscreenArgument(config: user.appendingPathComponent("grfs.toml")),"--readback_resolve=fast","--readback_memexport=true","--allow_game_relative_writes=false","--gpu_allow_invalid_fetch_constants=true","--async_shader_compilation=false","--execute_unclipped_draw_vs_on_cpu=true","--log_level=info"]
             let restart = RestartRequest(directory: logs)
             var env = ProcessInfo.processInfo.environment
             env.merge(restart.environment) { _, new in new }
             env["GRFS_SAFE_PREWARM"]="0"
             let candidates=["CacheCombinedFlowV1","CacheTextureExponentV1","CachePersistent","CachePersistentTest","Cache","Diagnostics/CachePrewarmV1","Diagnostics/CacheVisionPassMapV1"]
             var catalogFolders=Set(candidates.map{home.appendingPathComponent($0+"/shaders/shareable").path})
+            if let extracted=extractedCatalog{catalogFolders.insert(extracted.path)}
             // Previous diagnostic sessions also contain portable records. The SDK validates
             // title, record hashes and versions; no native pipeline binaries are imported.
             if let entries=fm.enumerator(at:home.appendingPathComponent("Performance"),includingPropertiesForKeys:nil,options:[.skipsHiddenFiles]) {
@@ -251,49 +333,95 @@ final class Launcher: NSObject, NSApplicationDelegate {
             env["SDL_VIDEO_MAC_FULLSCREEN_SPACES"] = "1"
             env["REX_GRFS_VERIFY_PROBE"] = "1"; env["REX_GRFS_ENUM_EMPTY_ERROR"] = "1"; env["REX_GRFS_SAMPLER_PROBE"] = "mip0"
             // Optimize translated modules; avoid the problematic stored-pipeline preload.
-            env["GRFS_SPIRV_OPTIMIZE"] = "0"
+            if env["GRFS_SPIRV_OPTIMIZE"] == nil { env["GRFS_SPIRV_OPTIMIZE"] = "0" }
             env["GRFS_SKIP_PIPELINE_PRELOAD"] = "1"
             env["GRFS_FORWARD_FLOW"] = "1"
-            env.removeValue(forKey: "GRFS_CLEAR_PAIR")
+            env["GRFS_CLEAR_PAIR"] = "1"
             // Production package omits diagnostic file writes and GPU stage probes.
             env.removeValue(forKey: "GRFS_CLEAR_STATS")
             // Presence enables eager acquisition, even for a value of "0".
             env.removeValue(forKey: "GRFS_EAGER_DRAWABLE")
             env["MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"] = "1"
-            env["GRFS_WINDOW_TITLE"] = "Ghost Recon Future Soldier Recomp v0.10.0.13"
+            env["GRFS_WINDOW_TITLE"] = (Bundle.main.object(forInfoDictionaryKey:"GRFSExtractionTrial")as? Bool == true) ? "Ghost Recon Future Soldier — ISO Shader Extraction Test" : "Ghost Recon Future Soldier Recomp v0.10.0.12"
             // Enable the Metal HUD facility; the F5 callback controls each layer
             // live. These are presentation statistics, not unique game frames.
             env["MTL_HUD_ENABLED"] = "1"
             env["MTL_HUD_ALIGNMENT"] = "topright"
+            env["MTL_HUD_SHOW_ZERO_METRICS"] = "0"
             env["DYLD_INSERT_LIBRARIES"] = runtime.appendingPathComponent("libGRFSWindowTitle.dylib").path
             if Bundle.main.object(forInfoDictionaryKey:"GRFSFullscreenTrace") as? Bool == true { env["GRFS_FULLSCREEN_TRACE"] = "1" }
+            if captureOnly {
+                env["GRFS_SAFE_PREWARM"]="0";env["GRFS_RECORD_CATALOG"]="1"
+                env["REX_GRFS_DIAGNOSTICS"]="1"
+                env["GRFS_WINDOW_TITLE"]=freshOnly ? "Ghost Recon Future Soldier — Fresh Guest Shaders" : "Ghost Recon Future Soldier — Catalog Safety / On-demand"
+                try "mode=\(safetyMode)\nseeded_cache=\(!freshOnly)\nstartup_preload=off\ncollect_pipeline_descriptions=on\nprivate_native_cache_reuse=off\ncache=\(activeCache.path)\n".write(to:preparationLogs.appendingPathComponent("test.txt"),atomically:true,encoding:.utf8)
+            }
+            env["GRFS_METAL_UNIFORM_PAGES"]="64"
+            env["MTL_DEBUG_LAYER"]="0"
+            env["GRFS_WINDOW_TITLE"]="Ghost Recon Future Soldier Recomp 2.1 — Native Metal"
+            env.removeValue(forKey:"GRFS_METAL_PROFILE")
+            env.removeValue(forKey: "GRFS_METAL_BLACK_PROBE")
+            env["GRFS_WINDOW_TITLE"]="Ghost Recon Future Soldier Recomp — Title Update 3"
+            for key in ["GRFS_METAL_FSI_PROBE", "GRFS_METAL_FSI_REPLAY", "GRFS_METAL_FSI_LIVE",
+                        "GRFS_METAL_NATIVE_BIAS_PROBE"] {
+                env.removeValue(forKey: key)
+            }
+            env["GRFS_METAL_NATIVE_ABSOLUTE_BIAS"] = "1"
+            env["GRFS_METAL_QUEUE_SHADER_DONE"] = "1"
+            env.removeValue(forKey: "GRFS_METAL_SHD_WAIT_REQUEST")
+            env.removeValue(forKey:"GRFS_METAL_CPU_VISIBILITY_TEST")
+            env.removeValue(forKey:"GRFS_METAL_PROFILE")
+            env.removeValue(forKey:"GRFS_METAL_BLACK_PROBE")
+            env.removeValue(forKey:"GRFS_METAL_SCANOUT_MEMORY_PROBE")
+            env.removeValue(forKey:"GRFS_METAL_EDRAM_DUMP_BARRIER")
+            for key in ["REX_GRFS_SAMPLER_PROBE", "REX_GRFS_COLOR_MIP0",
+                        "GRFS_METAL_BASE_MIP_TEST", "GRFS_METAL_ORDERED_TEXTURE_UPLOADS"] {
+                env.removeValue(forKey: key)
+            }
+            let modeDirectory = preparationLogs.appendingPathComponent("Metal")
+            try fm.createDirectory(at:modeDirectory,withIntermediateDirectories:true)
+            try "1\n".write(to:modeDirectory.appendingPathComponent("order.request"),
+                            atomically:true,encoding:.utf8)
+            env["GRFS_METAL_FORENSICS"]=modeDirectory.path
+            env["GRFS_METAL_COMPACT"]="1"
+            env["MTL_CAPTURE_ENABLED"]="0"
             p.environment = env
             let output = logs.appendingPathComponent("console.log"); fm.createFile(atPath:output.path,contents:nil)
             let file = try FileHandle(forWritingTo:output); p.standardOutput = file; p.standardError = file
             p.terminationHandler = { process in
                 try? file.close()
+                if captureOnly {
+                    try? fm.copyItem(at:output,to:preparationLogs.appendingPathComponent("console.log"))
+                    let archive=fm.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/GRFS-Catalog-Safety-"+preparationLogs.lastPathComponent+".zip")
+                    let zip=Process();zip.executableURL=URL(fileURLWithPath:"/usr/bin/ditto");zip.arguments=["-c","-k","--keepParent",preparationLogs.path,archive.path]
+                    do{try zip.run();zip.waitUntilExit()}catch{}
+                }
                 let shouldRestart = restart.consume(exitStatus: process.terminationStatus)
                 DispatchQueue.main.async {
                     self.shaderPreparation.stop()
                     self.child = nil
                     if shouldRestart { self.startGame(); return }
                     self.status.stringValue = process.terminationStatus == 0 ? "Game closed. Saves and shader storage preserved." : "The game exited with code \(process.terminationStatus). Check the Logs folder."
-                    self.button.title = "Play game"; self.button.isEnabled = true
+                    self.button.isEnabled = true
+                    self.dlcButton.isEnabled = true
                     if process.terminationStatus == 0 { NSApp.terminate(nil) }
                     else { NSApp.setActivationPolicy(.regular); self.window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }
                 }
             }
             status.stringValue = "Starting game and loading known shaders…"
-            try p.run(); child = p; launched = true; button.isEnabled = false
+            try p.run(); child = p; button.isEnabled = false; dlcButton.isEnabled = false
             window.orderOut(nil); NSApp.setActivationPolicy(.accessory)
             shaderPreparation.process=p
         } catch { shaderPreparation.stop();alert(error) }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if child != nil { return .terminateCancel }
-        if busy {
-            let a = NSAlert(); a.messageText = "Installation is in progress."; a.runModal()
+        if child != nil {
+            // AppKit may request termination when the launcher hides at game startup.
+            // Keep the supervisor alive without interrupting the game with a modal.
             return .terminateCancel
+        }
+        if busy || extractingShaderCatalog {
+            let a = NSAlert(); a.messageText = "Installation or shader preparation is in progress."; a.runModal(); return .terminateCancel
         }
         return .terminateNow
     }

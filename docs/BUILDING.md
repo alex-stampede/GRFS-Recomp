@@ -23,18 +23,18 @@ The script builds the public Swift host sources and runs synthetic ISO extractio
 
 ## 2. Rebuild the launcher with a release runtime
 
-Download and unzip the [v0.10.0.12 app](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v0.10.0.12). Keep the downloaded app separate from the output directory. On an Apple Silicon Mac, from the repository root:
+Use the [v3.1.1 reference app](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.1), the recompiled TU3 game app, the verified title update files, and their corresponding ReXGlue SDK. See the [TU3 build notes](../tu3/README.md) for the input inventory.
 
 ```sh
-export GRFS_RUNTIME_DIR="/absolute/path/to/GRFS Recompiled.app/Contents/Resources/Game.app/Contents/MacOS"
+export GRFS_STABLE_APP="/absolute/path/to/GRFS Recompiled.app"
+export GRFS_TU3_GAME_APP="/absolute/path/to/TU3 game.app"
+export GRFS_TU3_ASSETS="/absolute/path/to/extracted TU3"
+export GRFS_SDK_DIR="/absolute/path/to/rexglue-sdk"
 export GRFS_OUTPUT_DIR="$PWD/.build/dev"
 python3 launcher/build.py
-python3 launcher/test_package.py
 ```
 
-Replace the absolute path with your unzipped app location. The input directory must contain `grfs`, `librexruntime.dylib`, `librexgpu-xenos.dylib`, `libgrfs_AICLASS_X360_F.dylib`, `libTracyClient.dylib` and `vulkan/`. Keep these from one release; mixing runtime/GPU revisions is not a supported baseline. `GRFS_GPU_FILE` is an optional explicit override for a GPU library you have rebuilt and are testing.
-
-The output is `.build/dev/GRFS Recompiled.app` and a ZIP. The build script recreates that output app, compiles the launcher, title/HUD shim and update helper, and signs locally with an ad-hoc signature. It does not install or publish it, and creates no production-signed update manifest. No production key is needed.
+Use a fresh output directory. The build produces an ad-hoc signed app, a ZIP, and an unsigned updater payload. It retains the renderer and updater from the reference app. No production key is needed.
 
 Opening a development app uses the same `~/Library/Application Support/GRFS Recompiled/` data as the normal launcher. Back up `UserData/` before gameplay testing, keep other GRFS instances closed, and retain your working release. The published launcher can offer official updates; decline those while inspecting a local candidate. Host-only tests avoid this shared-data path entirely.
 

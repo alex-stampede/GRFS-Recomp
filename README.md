@@ -7,19 +7,15 @@
   <img src="https://img.shields.io/badge/status-experimental-e6b766?style=flat-square" alt="Experimental">
 </p>
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
-<p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#native-metal--312-tu3-preview">TU3 + DLC preview</a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
+<p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#install-dlc">Install DLC</a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
-## Native Metal — 3.1.2 TU3 Preview
+## Native Metal — 3.1.3
 
-The [3.1.2 preview](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.2) applies Title Update 3 directly to the clean Xbox 360 release with Title ID `55530833` and Media ID `2DF41A75`. It uses the same Metal renderer as 3.1.1, with native output, uncapped host presentation, and the F5 display controls.
+[Version 3.1.3](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.3) adds **Title Update 3** to the standard launcher and signed update channel. It applies the bundled update directly to the compatible Xbox 360 release with Title ID `55530833` and Media ID `2DF41A75`. Existing installations keep their game and saves. The launcher prepares a local copy for TU3 and uses a separate TU3 shader cache.
 
-1. Install a clean copy of the compatible Xbox 360 disc in 3.1.1 using the instructions below.
-2. Download the [preview ZIP](https://github.com/alex-stampede/GRFS-Recomp/releases/download/v3.1.2/GRFS-Recompiled-3.1.2-TU3-macOS-arm64.zip), extract it, and open **GRFS Recompiled TU3 Preview.app** on Apple Silicon with macOS 27.2 or later.
-3. Select your own TU3 ZIP or its verified `2DF41A75` update package. Then select your `55530833` folder containing the three `00000002` DLC packages. The game, title update, and DLC files are supplied locally.
+The same native Metal renderer, uncapped host presentation, and F5 display controls carry forward from 3.1.1. All three DLC packages mounted on M4 Pro. Raven Strike's **Secure Dawn** mission started and saved to a separate campaign slot in the TU3 preview. Remaining DLC maps, audio, and the 8 GB M3 Air still need broader coverage.
 
-On first launch the preview creates a separate game installation, copies the existing saves, and creates its own shader cache under `~/Library/Application Support/GRFS Recompiled TU3 Preview/`. Progress made there belongs to the preview profile. 3.1.1 remains the stable download and automatic update channel.
-
-All three DLC packages mounted on M4 Pro. Raven Strike's **Secure Dawn** mission started and saved to a separate campaign slot. The other DLC maps and audio still need full playtesting. A warm-cache campaign comparison measured about 30 new game swaps per second on both builds, with higher median GPU time in TU3 (23.87 ms versus 19.81 ms). The equipped weapon differed between runs. The preview still needs testing on the 8 GB M3 Air.
+The older [3.1.2 preview](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.2) used a separate profile. Its progress stays in that profile.
 
 ## Native Metal — 3.1.1
 
@@ -43,20 +39,28 @@ The current release uses the native Metal backend ported from XeniOS, static Pow
 
 1. Download [GRFS-Recompiled-macOS-arm64.zip](https://github.com/alex-stampede/GRFS-Recomp/releases/latest/download/GRFS-Recompiled-macOS-arm64.zip).
 2. Unzip and move **GRFS Recompiled.app** to **Applications**.
-3. Open it and select your compatible Xbox 360 ISO. Let extraction and verification finish.
-4. After installation, open the same app to play. Existing installations can update without reinstalling the ISO.
+3. Open it and select your compatible Xbox 360 ISO if this is a new installation. TU3 is prepared automatically. Existing installations can update without reinstalling the ISO.
+4. Select **Play Game** in the launcher.
 5. Open **Extras → Options → F5** (Fn+F5 on some keyboards) for PC settings. Use **Save settings** to retain changes, or **Save and restart** when required.
 
 | Requirement | Details |
 | :--- | :--- |
 | Mac | Apple Silicon / ARM64 |
-| macOS | 27.2 or later for 3.1.1 |
+| macOS | 27.2 or later |
 | Game | Own Xbox 360 ISO matching [the compatibility manifest](launcher/compatible-game.json) |
 | Development machine | Mac mini M4 Pro, 24 GB memory |
 | Additional testing | MacBook Air M3, 8 GB memory |
 | Storage | Extracted game plus temporary installation/update files and shader data |
 
 The owner reports substantially smoother play with native output and unlimited presentation. This is user feedback, **not a controlled cross-device 60 FPS benchmark**. Intel Macs, other disc revisions and online multiplayer are not validated.
+
+## Install DLC
+
+1. When the launcher is ready, select **Install DLC…**.
+2. Choose your local `55530833` folder or its `00000002` subfolder. You can import one or more of the three supported Xbox 360 DLC packages.
+3. Wait for the progress bar to finish, then select **Play Game**. The DLC is installed into the standard launcher profile and remains available on subsequent launches.
+
+The download includes TU3. DLC packages and the original Xbox 360 ISO are supplied locally by the player.
 
 ## PC settings and controls
 

@@ -31,7 +31,8 @@ def main():
         launcher = ROOT / "launcher"
         sources = [launcher / name for name in (
             "main.swift", "Launcher.swift", "Updater.swift", "LauncherTheme.swift",
-            "LegacyBackups.swift", "RestartRequest.swift", "ShaderPreparation.swift")]
+            "LegacyBackups.swift", "RestartRequest.swift", "ShaderPreparation.swift",
+            "ExperimentalGraphics.swift", "TitleUpdate.swift", "DLCInstallation.swift")]
         run("swiftc", *sources, "-framework", "AppKit", "-framework", "CryptoKit",
             "-module-cache-path", cache, "-o", env["GRFS_TEST_LAUNCHER_BINARY"])
         run(sys.executable, launcher / "test_iso.py")

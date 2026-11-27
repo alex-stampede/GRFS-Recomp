@@ -6,5 +6,9 @@
   "aiclass_x360_f.xex": {
     "sha256": "92241e6d2b1e11f21b3f0476a56ddf3e2e2efd3c1c7a62212d4d6715c28221a3",
     "size": 3297280
+  },
+  "uplaybrowser.xex": {
+    "sha256": "49a616000fc08c16272113e9695f63e3d0f12ad4e9904433b663d403543ab603",
+    "size": 14102528
   }
 }

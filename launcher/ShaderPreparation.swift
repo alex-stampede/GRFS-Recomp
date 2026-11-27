@@ -9,6 +9,7 @@ final class ShaderPreparation {
     var prepStarted=Date()
     var preparationIPC:URL?
     var process:Process?
+    var inventorySummary:String?
     func stop(){progressTimer?.invalidate();progressTimer=nil;progressWindow?.orderOut(nil);process=nil}
     func showPreparation(_ folder:URL){
         let win=NSPanel(contentRect:NSRect(x:0,y:0,width:560,height:190),styleMask:[.titled,.nonactivatingPanel],backing:.buffered,defer:false)
@@ -21,7 +22,7 @@ final class ShaderPreparation {
         text.textColor = NSColor(calibratedWhite:0.9,alpha:1)
         text.frame=NSRect(x:24,y:73,width:510,height:48)
         let bar=NSProgressIndicator(frame:NSRect(x:24,y:40,width:510,height:18));bar.isIndeterminate=true;bar.style = .bar;bar.startAnimation(nil)
-        let note=NSTextField(labelWithString:"Primera apertura: aprende variantes. Siguientes: prepara las conocidas.")
+        let note=NSTextField(labelWithString:inventorySummary ?? "Primera apertura: aprende variantes. Siguientes: prepara las conocidas.")
         note.textColor = .systemTeal
         note.font = .systemFont(ofSize:11);note.frame=NSRect(x:24,y:12,width:520,height:18)
         for v in [title,text,bar,note] as [NSView]{win.contentView?.addSubview(v)}
@@ -50,6 +51,11 @@ final class ShaderPreparation {
             }
             guard let data=try? Data(contentsOf:path),let json=(try? JSONSerialization.jsonObject(with:data))as? [String:Any],let phase=json["phase"]as? String else{
                 if Date().timeIntervalSince(self.prepStarted)>15 {self.progressLabel?.stringValue="Inicializando gráficos… La primera preparación puede tardar. El juego sigue arrancando."};return
+            }
+            if phase=="scan" {
+                self.progressBar?.isIndeterminate=true;self.progressBar?.startAnimation(nil)
+                self.progressLabel?.stringValue="Revisando catálogo y caché…\nTiempo transcurrido: \(Int(Date().timeIntervalSince(self.prepStarted))) s"
+                return
             }
             let done=(json["done"]as? NSNumber)?.doubleValue ?? 0,total=(json["total"]as? NSNumber)?.doubleValue ?? 0
             let fraction=total>0 ? min(1,done/total):0
