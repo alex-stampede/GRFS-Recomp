@@ -104,7 +104,7 @@ final class ISO {
 }
 
 final class Launcher: NSObject, NSApplicationDelegate {
-    let home = fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/GRFS Recompiled")
+    let home: URL
     var game: URL { home.appendingPathComponent("Game") }
     var state: URL { home.appendingPathComponent("installation.json") }
     var profile: URL { home.appendingPathComponent("UserData") }
@@ -118,9 +118,17 @@ final class Launcher: NSObject, NSApplicationDelegate {
     let bar = GRFSProgressIndicator()
     let button = GRFSActionButton(title: "Choose ISO…", target: nil, action: nil)
     let dlcButton = GRFSActionButton(title: "Install DLC…", target: nil, action: nil)
+    let dlcChecklist = NSStackView()
+    let dlcLabels = DLCPackage.supported.map { _ in NSTextField(labelWithString: "") }
     var busy = false
     var child: Process?
     var experimentalGraphics: ExperimentalGraphicsWindow?
+
+    init(home: URL = fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/GRFS Recompiled")) {
+        self.home = home
+        super.init()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "DockIcon", withExtension: "png"),
            let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
@@ -160,12 +168,24 @@ final class Launcher: NSObject, NSApplicationDelegate {
         busy = false
         button.title = "Play Game"
         button.isEnabled = true
-        dlcButton.isEnabled = true
-        update(100, "Ready to play · Title Update 3")
+        refreshDLCChecklist()
+        update(100, "Ready to play Ghost Recon Future Soldier v1.5.0.0 p0x0")
+    }
+    func refreshDLCChecklist() {
+        let installed = DLCPackage.installed(in: profile)
+        for (package, label) in zip(DLCPackage.supported, dlcLabels) {
+            let present = installed.contains(package.id)
+            label.stringValue = "\(present ? "✓" : "○")  \(package.name)"
+            label.textColor = present ? .labelColor : .secondaryLabelColor
+            label.setAccessibilityLabel("\(package.name), \(present ? "installed" : "not installed")")
+        }
+        dlcChecklist.isHidden = false
+        dlcButton.isEnabled = !busy && child == nil && installed.count < DLCPackage.supported.count
+        dlcButton.toolTip = installed.count == DLCPackage.supported.count ? "All supported DLC is installed." : nil
     }
 
     @objc func selectDLC() {
-        guard let updatedGame, !busy, child == nil else { return }
+        guard let updatedGame, dlcButton.isEnabled, !busy, child == nil else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -185,15 +205,13 @@ final class Launcher: NSObject, NSApplicationDelegate {
             profile: profile)
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let count = try installer.install(from: folder, progress: self.update)
+                _ = try installer.install(from: folder, progress: self.update)
                 DispatchQueue.main.async {
                     self.showReady(updatedGame)
-                    self.update(100, count == 1 ? "1 DLC package installed." : "\(count) DLC packages installed.")
                 }
             } catch {
                 DispatchQueue.main.async {
                     self.showReady(updatedGame)
-                    self.update(0, "DLC installation did not complete.")
                     self.alert(error)
                 }
             }
@@ -403,7 +421,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
                     if shouldRestart { self.startGame(); return }
                     self.status.stringValue = process.terminationStatus == 0 ? "Game closed. Saves and shader storage preserved." : "The game exited with code \(process.terminationStatus). Check the Logs folder."
                     self.button.isEnabled = true
-                    self.dlcButton.isEnabled = true
+                    self.refreshDLCChecklist()
                     if process.terminationStatus == 0 { NSApp.terminate(nil) }
                     else { NSApp.setActivationPolicy(.regular); self.window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }
                 }

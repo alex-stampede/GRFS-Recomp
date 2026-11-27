@@ -14,7 +14,7 @@ final class GRFSBackdrop: NSView {
             NSGraphicsContext.restoreGraphicsState()
         }
         NSGradient(colors:[NSColor(srgbRed:0.02,green:0.055,blue:0.08,alpha:1),NSColor.black.withAlphaComponent(0.08)])?.draw(in:bounds,angle:90)
-        let panel = NSBezierPath(roundedRect:NSRect(x:28,y:28,width:bounds.width-56,height:182),xRadius:10,yRadius:10)
+        let panel = NSBezierPath(roundedRect:NSRect(x:28,y:28,width:bounds.width-56,height:210),xRadius:10,yRadius:10)
         NSColor(srgbRed:0.035,green:0.09,blue:0.12,alpha:0.95).setFill();panel.fill()
         grfsAccent.withAlphaComponent(0.18).setStroke();panel.lineWidth=1;panel.stroke()
         grfsAccent.setFill();NSRect(x:48,y:bounds.height-40,width:30,height:2).fill()
@@ -61,15 +61,23 @@ extension Launcher {
         button.target=self;button.action=#selector(selectISO);button.isBordered=false
         dlcButton.target=self;dlcButton.action=#selector(selectDLC);dlcButton.isBordered=false
         dlcButton.isEnabled=false
-        for view in [brand,platform,section,status,percent,bar,detail,button,dlcButton] {
+        dlcChecklist.orientation = .horizontal
+        dlcChecklist.spacing = 20
+        dlcChecklist.isHidden = true
+        for label in dlcLabels {
+            label.font = .systemFont(ofSize: 13, weight: .medium)
+            dlcChecklist.addArrangedSubview(label)
+        }
+        for view in [brand,platform,section,status,percent,bar,detail,button,dlcButton,dlcChecklist] {
             view.translatesAutoresizingMaskIntoConstraints=false;background.addSubview(view)
         }
         NSLayoutConstraint.activate([
             brand.leadingAnchor.constraint(equalTo:background.leadingAnchor,constant:92),brand.topAnchor.constraint(equalTo:background.topAnchor,constant:31),
             platform.trailingAnchor.constraint(equalTo:background.trailingAnchor,constant:-48),platform.centerYAnchor.constraint(equalTo:brand.centerYAnchor),
-            section.leadingAnchor.constraint(equalTo:background.leadingAnchor,constant:48),section.bottomAnchor.constraint(equalTo:background.bottomAnchor,constant:-179),
+            section.leadingAnchor.constraint(equalTo:background.leadingAnchor,constant:48),section.bottomAnchor.constraint(equalTo:background.bottomAnchor,constant:-207),
             status.leadingAnchor.constraint(equalTo:section.leadingAnchor),status.trailingAnchor.constraint(equalTo:background.trailingAnchor,constant:-100),status.topAnchor.constraint(equalTo:section.bottomAnchor,constant:13),
             bar.leadingAnchor.constraint(equalTo:section.leadingAnchor),bar.trailingAnchor.constraint(equalTo:background.trailingAnchor,constant:-48),bar.bottomAnchor.constraint(equalTo:background.bottomAnchor,constant:-107),bar.heightAnchor.constraint(equalToConstant:6),
+            dlcChecklist.leadingAnchor.constraint(equalTo:bar.leadingAnchor),dlcChecklist.bottomAnchor.constraint(equalTo:bar.topAnchor,constant:-13),
             percent.trailingAnchor.constraint(equalTo:bar.trailingAnchor),percent.bottomAnchor.constraint(equalTo:bar.topAnchor,constant:-12),
             detail.leadingAnchor.constraint(equalTo:section.leadingAnchor),detail.bottomAnchor.constraint(equalTo:background.bottomAnchor,constant:-61),
             button.trailingAnchor.constraint(equalTo:bar.trailingAnchor),button.centerYAnchor.constraint(equalTo:detail.centerYAnchor),button.widthAnchor.constraint(equalToConstant:190),button.heightAnchor.constraint(equalToConstant:40),

@@ -9,6 +9,10 @@
 <p align="center"><strong>Ghost Recon Future Soldier for Xbox 360, recompiled for Apple Silicon with a native Metal renderer.</strong><br>Bring your own ISO. Play Campaign, Gunsmith and Guerrilla. Keep your installed game and saves when updating.</p>
 <p align="center"><a href="https://github.com/alex-stampede/GRFS-Recomp/releases/latest"><strong>Download for Mac</strong></a> · <a href="#install-dlc">Install DLC</a> · <a href="#getting-started">Getting started</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="#known-issues">Known issues</a> · <a href="#support-the-project">Support</a></p>
 
+## Native Metal — 3.1.5
+
+[Version 3.1.5](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.5) shows the game version and the three DLC installation statuses in the launcher. **Install DLC…** is available while any supported pack is missing.
+
 ## Native Metal — 3.1.4
 
 [Version 3.1.4](https://github.com/alex-stampede/GRFS-Recomp/releases/tag/v3.1.4) restores **Extras → Options → F5** on TU3. The PC settings panel includes display mode, window size, Apple’s Metal HUD, and **Save and restart**. The launcher still installs DLC from your local folder with a progress bar.
@@ -62,7 +66,7 @@ The owner reports substantially smoother play with native output and unlimited p
 
 1. When the launcher is ready, select **Install DLC…**.
 2. Choose your local `55530833` folder or its `00000002` subfolder. You can import one or more of the three supported Xbox 360 DLC packages.
-3. Wait for the progress bar to finish, then select **Play Game**. The DLC is installed into the standard launcher profile and remains available on subsequent launches.
+3. Wait for the progress bar to finish, then select **Play Game**. The checklist marks installed packs in the standard launcher profile, including packs installed in previous versions. The installer imports only missing or incomplete packs from the selected folder.
 
 The download includes TU3. DLC packages and the original Xbox 360 ISO are supplied locally by the player.
 
